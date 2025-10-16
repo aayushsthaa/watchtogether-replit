@@ -41,6 +41,24 @@ export const api = {
       }).then(handleResponse),
   },
 
+  profile: {
+    update: (data: { username?: string; avatarUrl?: string }) =>
+      fetch(`${API_BASE}/profile`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      }).then(handleResponse),
+
+    changePassword: (data: { currentPassword: string; newPassword: string }) =>
+      fetch(`${API_BASE}/profile/password`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      }).then(handleResponse),
+  },
+
   rooms: {
     getAll: () =>
       fetch(`${API_BASE}/rooms`, {
@@ -52,7 +70,7 @@ export const api = {
         credentials: 'include',
       }).then(handleResponse),
 
-    create: (data: { name: string; mode?: 'screenshare' | 'watchparty'; videoUrl?: string }) =>
+    create: (data: { name: string; videoUrl?: string }) =>
       fetch(`${API_BASE}/rooms`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

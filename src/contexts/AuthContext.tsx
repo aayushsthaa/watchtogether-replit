@@ -6,6 +6,7 @@ interface User {
   _id: string;
   username: string;
   isAdmin: boolean;
+  avatarUrl?: string;
 }
 
 interface AuthContextType {
@@ -14,6 +15,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateUser: (user: User) => void;
   getToken: () => string | null;
 }
 
@@ -78,6 +80,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const getToken = () => token;
 
+  const updateUser = (updatedUser: User) => {
+    queryClient.setQueryData(['auth', 'me'], updatedUser);
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -86,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAuthenticated: !!user,
         login,
         logout,
+        updateUser,
         getToken,
       }}
     >

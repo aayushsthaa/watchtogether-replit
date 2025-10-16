@@ -13,6 +13,7 @@ import Home from "@/pages/home";
 import Login from "@/pages/login";
 import Rooms from "@/pages/rooms";
 import Room from "@/pages/room";
+import Profile from "@/pages/profile";
 import AdminDashboard from "@/pages/admin-dashboard";
 import NotFound from "@/pages/not-found";
 
@@ -38,6 +39,7 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/rooms" component={Rooms} />
       <Route path="/room/:id" component={Room} />
+      <Route path="/profile" component={Profile} />
       <Route path="/admin" component={AdminDashboard} />
       <Route component={NotFound} />
     </Switch>

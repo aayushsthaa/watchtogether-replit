@@ -11,7 +11,7 @@ import {
   SidebarFooter,
   SidebarHeader,
 } from "@/components/ui/sidebar";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -156,22 +156,25 @@ export function AppSidebar() {
       <SidebarFooter className="p-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton className="w-full" data-testid="nav-user-profile">
-              <Avatar className="h-6 w-6">
-                <AvatarFallback className="text-xs">
-                  {user?.username.slice(0, 2).toUpperCase() || "??"}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 text-left min-w-0">
-                <div className="text-sm font-medium truncate">
-                  {user?.username || "Unknown"}
+            <SidebarMenuButton asChild className="w-full" data-testid="nav-user-profile">
+              <Link href="/profile">
+                <Avatar className="h-6 w-6">
+                  {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.username} />}
+                  <AvatarFallback className="text-xs">
+                    {user?.username.slice(0, 2).toUpperCase() || "??"}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 text-left min-w-0">
+                  <div className="text-sm font-medium truncate">
+                    {user?.username || "Unknown"}
+                  </div>
+                  {user?.isAdmin && (
+                    <Badge variant="secondary" className="h-4 px-1 text-xs">
+                      Admin
+                    </Badge>
+                  )}
                 </div>
-                {user?.isAdmin && (
-                  <Badge variant="secondary" className="h-4 px-1 text-xs">
-                    Admin
-                  </Badge>
-                )}
-              </div>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>

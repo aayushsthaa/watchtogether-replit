@@ -6,6 +6,7 @@ export const userSchema = z.object({
   username: z.string().min(3).max(30),
   password: z.string().min(6),
   isAdmin: z.boolean().default(false),
+  avatarUrl: z.string().optional(),
   createdAt: z.date().or(z.string()),
 });
 
@@ -48,7 +49,6 @@ export const roomSchema = z.object({
 
 export const insertRoomSchema = z.object({
   name: z.string().min(1, "Room name is required").max(50),
-  mode: roomModeSchema.optional().default("watchparty"),
   videoUrl: z.string().url().optional(),
 });
 
@@ -122,7 +122,22 @@ export const authResponseSchema = z.object({
     _id: z.string(),
     username: z.string(),
     isAdmin: z.boolean(),
+    avatarUrl: z.string().optional(),
   }),
 });
+
+// Profile Update Schema
+export const updateProfileSchema = z.object({
+  username: z.string().min(3).max(30).optional(),
+  avatarUrl: z.string().url().optional().or(z.literal("")),
+});
+
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(6),
+});
+
+export type UpdateProfile = z.infer<typeof updateProfileSchema>;
+export type ChangePassword = z.infer<typeof changePasswordSchema>;
 
 export type AuthResponse = z.infer<typeof authResponseSchema>;

@@ -36,15 +36,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Users, Crown, MonitorPlay, Video } from "lucide-react";
+import { Plus, Users, Crown, Video, Check } from "lucide-react";
 
 export default function Rooms() {
   const [location, setLocation] = useLocation();
-  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
 
@@ -56,12 +54,9 @@ export default function Rooms() {
     resolver: zodResolver(insertRoomSchema),
     defaultValues: {
       name: "",
-      mode: "watchparty",
       videoUrl: "",
     },
   });
-
-  const selectedMode = form.watch("mode");
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -157,65 +152,77 @@ export default function Rooms() {
           </Card>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {roomsList.map((room: Room) => (
-              <Card
-                key={room._id}
-                className="overflow-hidden hover-elevate"
-                data-testid={`card-room-${room._id}`}
-              >
-                <CardHeader className="gap-3 space-y-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <CardTitle
-                      className="text-lg truncate"
-                      data-testid={`text-room-name-${room._id}`}
+            {roomsList.map((room: Room) => {
+              const isUserInRoom = user && room.participants.some((p: any) => p.userId === user._id);
+              
+              return (
+                <Card
+                  key={room._id}
+                  className="overflow-hidden hover-elevate"
+                  data-testid={`card-room-${room._id}`}
+                >
+                  <CardHeader className="gap-3 space-y-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <CardTitle
+                        className="text-lg truncate"
+                        data-testid={`text-room-name-${room._id}`}
+                      >
+                        {room.name}
+                      </CardTitle>
+                      <div className="flex gap-1 shrink-0">
+                        <Badge
+                          variant="secondary"
+                          className="shrink-0"
+                          data-testid={`badge-mode-${room._id}`}
+                        >
+                          <Video className="mr-1 h-3 w-3" />
+                          {room.mode === "screenshare" ? "Screen" : "Watch"}
+                        </Badge>
+                        {isUserInRoom && (
+                          <Badge
+                            variant="default"
+                            className="shrink-0"
+                            data-testid={`badge-joined-${room._id}`}
+                          >
+                            <Check className="mr-1 h-3 w-3" />
+                            Joined
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <CardDescription className="flex items-center gap-2">
+                      <Avatar className="h-5 w-5">
+                        <AvatarFallback className="text-xs">
+                          {room.ownerUsername.slice(0, 2).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="flex items-center gap-1 text-sm">
+                        <Crown className="h-3 w-3 text-primary" />
+                        {room.ownerUsername}
+                      </span>
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Users className="h-4 w-4" />
+                      <span data-testid={`text-participants-${room._id}`}>
+                        {room.participants.length}{" "}
+                        {room.participants.length === 1
+                          ? "participant"
+                          : "participants"}
+                      </span>
+                    </div>
+                    <Button
+                      className="w-full"
+                      onClick={() => joinRoom(room._id)}
+                      data-testid={`button-join-${room._id}`}
                     >
-                      {room.name}
-                    </CardTitle>
-                    <Badge
-                      variant="secondary"
-                      className="shrink-0"
-                      data-testid={`badge-mode-${room._id}`}
-                    >
-                      {room.mode === "screenshare" ? (
-                        <MonitorPlay className="mr-1 h-3 w-3" />
-                      ) : (
-                        <Video className="mr-1 h-3 w-3" />
-                      )}
-                      {room.mode === "screenshare" ? "Screen" : "Watch"}
-                    </Badge>
-                  </div>
-                  <CardDescription className="flex items-center gap-2">
-                    <Avatar className="h-5 w-5">
-                      <AvatarFallback className="text-xs">
-                        {room.ownerUsername.slice(0, 2).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="flex items-center gap-1 text-sm">
-                      <Crown className="h-3 w-3 text-primary" />
-                      {room.ownerUsername}
-                    </span>
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Users className="h-4 w-4" />
-                    <span data-testid={`text-participants-${room._id}`}>
-                      {room.participants.length}{" "}
-                      {room.participants.length === 1
-                        ? "participant"
-                        : "participants"}
-                    </span>
-                  </div>
-                  <Button
-                    className="w-full"
-                    onClick={() => joinRoom(room._id)}
-                    data-testid={`button-join-${room._id}`}
-                  >
-                    Join Room
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
+                      {isUserInRoom ? "Rejoin Room" : "Join Room"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         )}
 
@@ -224,7 +231,7 @@ export default function Rooms() {
             <DialogHeader>
               <DialogTitle>Create Watch Room</DialogTitle>
               <DialogDescription>
-                Set up a new room to watch together
+                Create a room to watch together. You can change the mode and video after creation.
               </DialogDescription>
             </DialogHeader>
             <Form {...form}>
@@ -249,83 +256,6 @@ export default function Rooms() {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="mode"
-                  render={({ field }) => (
-                    <FormItem className="space-y-3">
-                      <FormLabel>Room Mode</FormLabel>
-                      <FormControl>
-                        <RadioGroup
-                          onValueChange={field.onChange}
-                          value={field.value}
-                          className="grid grid-cols-2 gap-3"
-                        >
-                          <div>
-                            <RadioGroupItem
-                              value="watchparty"
-                              id="watchparty"
-                              className="peer sr-only"
-                              data-testid="radio-watchparty"
-                            />
-                            <Label
-                              htmlFor="watchparty"
-                              className="flex flex-col gap-2 rounded-md border p-4 cursor-pointer hover-elevate peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5"
-                            >
-                              <Video className="h-5 w-5" />
-                              <div className="space-y-1">
-                                <div className="font-medium">Watch Party</div>
-                                <div className="text-xs text-muted-foreground">
-                                  YouTube videos
-                                </div>
-                              </div>
-                            </Label>
-                          </div>
-                          <div>
-                            <RadioGroupItem
-                              value="screenshare"
-                              id="screenshare"
-                              className="peer sr-only"
-                              data-testid="radio-screenshare"
-                            />
-                            <Label
-                              htmlFor="screenshare"
-                              className="flex flex-col gap-2 rounded-md border p-4 cursor-pointer hover-elevate peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/5"
-                            >
-                              <MonitorPlay className="h-5 w-5" />
-                              <div className="space-y-1">
-                                <div className="font-medium">Screen Share</div>
-                                <div className="text-xs text-muted-foreground">
-                                  Share your screen
-                                </div>
-                              </div>
-                            </Label>
-                          </div>
-                        </RadioGroup>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                {selectedMode === "watchparty" && (
-                  <FormField
-                    control={form.control}
-                    name="videoUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Video URL (Optional)</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="https://youtube.com/watch?v=..."
-                            data-testid="input-video-url"
-                            {...field}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                )}
                 <DialogFooter>
                   <Button
                     type="button"

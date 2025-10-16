@@ -169,12 +169,13 @@ export default function Room() {
           </div>
           
           <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Participants Drawer for Mobile */}
+            {/* Participants Drawer */}
             <Sheet>
               <SheetTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-1.5">
                   <Users className="h-4 w-4" />
-                  <span>{roomData.participants.length}</span>
+                  <span className="hidden sm:inline">Participants</span>
+                  <span className="sm:hidden">{roomData.participants.length}</span>
                 </Button>
               </SheetTrigger>
               <SheetContent side="bottom" className="h-[80vh]">
@@ -223,29 +224,28 @@ export default function Room() {
               </SheetContent>
             </Sheet>
 
-            {/* Mode Toggle and Leave - Desktop */}
+            {/* Room Settings - For Owner */}
             {isOwner && (
-              <div className="hidden sm:block">
-                <RoomControls
-                  roomId={roomData._id}
-                  roomName={roomData.name}
-                  mode={roomData.mode}
-                  isOwner={isOwner}
-                  onModeChange={handleModeChange}
-                  onLeave={handleLeaveRoom}
-                />
-              </div>
+              <RoomControls
+                roomId={roomData._id}
+                roomName={roomData.name}
+                mode={roomData.mode}
+                isOwner={isOwner}
+                onModeChange={handleModeChange}
+                onLeave={handleLeaveRoom}
+              />
             )}
             
-            {/* Leave Button - Mobile */}
-            <Button 
-              variant="destructive" 
-              size="sm" 
-              onClick={handleLeaveRoom}
-              className={isOwner ? "sm:hidden" : ""}
-            >
-              Leave
-            </Button>
+            {/* Leave Button - For Non-Owners */}
+            {!isOwner && (
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                onClick={handleLeaveRoom}
+              >
+                Leave
+              </Button>
+            )}
           </div>
         </div>
       </div>

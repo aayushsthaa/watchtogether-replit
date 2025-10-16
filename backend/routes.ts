@@ -62,6 +62,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             _id: user._id.toString(),
             username: user.username,
             isAdmin: user.isAdmin,
+            avatarUrl: user.avatarUrl || '',
           },
         });
       } catch (error) {
@@ -89,12 +90,96 @@ export async function registerRoutes(app: Express): Promise<Server> {
         _id: user._id.toString(),
         username: user.username,
         isAdmin: user.isAdmin,
+        avatarUrl: user.avatarUrl || '',
       });
     } catch (error) {
       console.error('Get user error:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
+
+  // ==================== USER PROFILE ROUTES ====================
+
+  // PATCH /api/profile - Update own profile
+  app.patch(
+    '/api/profile',
+    authenticateToken,
+    [
+      body('username').optional().isLength({ min: 3, max: 30 }).withMessage('Username must be 3-30 characters'),
+      body('avatarUrl').optional().custom((value) => {
+        if (!value || value === '') return true;
+        return /^https?:\/\/.+/.test(value);
+      }).withMessage('Invalid avatar URL'),
+    ],
+    validateRequest,
+    async (req: AuthRequest, res) => {
+      try {
+        const updates: any = {};
+
+        if (req.body.username) {
+          const existingUser = await User.findOne({ 
+            username: req.body.username, 
+            _id: { $ne: req.user?._id } 
+          });
+          if (existingUser) {
+            return res.status(400).json({ message: 'Username already exists' });
+          }
+          updates.username = req.body.username;
+        }
+
+        if (req.body.avatarUrl !== undefined) {
+          updates.avatarUrl = req.body.avatarUrl;
+        }
+
+        const user = await User.findByIdAndUpdate(req.user?._id, updates, { new: true }).select('-password');
+        if (!user) {
+          return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.json({
+          _id: user._id.toString(),
+          username: user.username,
+          isAdmin: user.isAdmin,
+          avatarUrl: user.avatarUrl || '',
+        });
+      } catch (error) {
+        console.error('Update profile error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+      }
+    }
+  );
+
+  // PATCH /api/profile/password - Change own password
+  app.patch(
+    '/api/profile/password',
+    authenticateToken,
+    [
+      body('currentPassword').notEmpty().withMessage('Current password is required'),
+      body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters'),
+    ],
+    validateRequest,
+    async (req: AuthRequest, res) => {
+      try {
+        const user = await User.findById(req.user?._id);
+        if (!user) {
+          return res.status(404).json({ message: 'User not found' });
+        }
+
+        const isValidPassword = await bcrypt.compare(req.body.currentPassword, user.password);
+        if (!isValidPassword) {
+          return res.status(401).json({ message: 'Current password is incorrect' });
+        }
+
+        user.password = await bcrypt.hash(req.body.newPassword, SALT_ROUNDS);
+        await user.save();
+
+        res.json({ message: 'Password updated successfully' });
+      } catch (error) {
+        console.error('Change password error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+      }
+    }
+  );
 
   // ==================== ADMIN USER MANAGEMENT ROUTES ====================
 
