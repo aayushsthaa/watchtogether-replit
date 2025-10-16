@@ -1,10 +1,16 @@
 import express, { type Request, Response, NextFunction } from "express";
+import cookieParser from "cookie-parser";
+import bcrypt from "bcrypt";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { connectDB } from "./db";
+import { setupWebSocket } from "./websocket";
+import { User } from "./models/User";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
 
 app.use((req, res, next) => {
   const start = Date.now();
@@ -36,8 +42,37 @@ app.use((req, res, next) => {
   next();
 });
 
+// Create default admin user on first run
+async function createDefaultAdmin() {
+  try {
+    const adminExists = await User.findOne({ username: 'admin' });
+    if (!adminExists) {
+      const hashedPassword = await bcrypt.hash('admin123', 10);
+      const admin = new User({
+        username: 'admin',
+        password: hashedPassword,
+        isAdmin: true,
+      });
+      await admin.save();
+      console.log('✅ Default admin user created (username: admin, password: admin123)');
+    }
+  } catch (error) {
+    console.error('Error creating default admin:', error);
+  }
+}
+
 (async () => {
+  // Connect to MongoDB
+  await connectDB();
+
+  // Create default admin user
+  await createDefaultAdmin();
+
+  // Register routes and get HTTP server
   const server = await registerRoutes(app);
+
+  // Initialize WebSocket server
+  setupWebSocket(server);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
