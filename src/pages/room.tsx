@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRoom, useJoinRoom, useLeaveRoom, useUpdateRoom, useTransferOwnership } from "@/hooks/useRooms";
 import { useMessages, useSendMessage } from "@/hooks/useMessages";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { RoomVideo } from "@/components/room-video";
 import { RoomControls } from "@/components/room-controls";
 import { OwnershipTransfer } from "@/components/ownership-transfer";
@@ -23,6 +24,7 @@ export default function Room() {
   const [, setLocation] = useLocation();
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
+  const isMobile = useIsMobile();
 
   const { data: room, isLoading: roomLoading } = useRoom(params.id);
   const { data: messages = [], isLoading: messagesLoading } = useMessages(params.id);
@@ -142,10 +144,122 @@ export default function Room() {
     );
   }
 
+  // Desktop Layout: Side-by-side (video left, chat right)
+  if (!isMobile) {
+    return (
+      <div className="h-full flex flex-col" data-testid="room-page">
+        {/* Header with room info and controls */}
+        <div className="flex-shrink-0 border-b bg-background p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0 flex-1">
+              <h2 className="font-semibold truncate text-lg">{roomData.name}</h2>
+              <Badge variant="secondary">
+                {roomData.mode === "screenshare" ? "Screen Share" : "Watch Party"}
+              </Badge>
+            </div>
+            
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Participants Sheet */}
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Users className="h-4 w-4" />
+                    Participants ({roomData.participants.length})
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-96">
+                  <SheetHeader>
+                    <SheetTitle className="flex items-center justify-between">
+                      <span>Participants ({roomData.participants.length})</span>
+                      {isOwner && (
+                        <OwnershipTransfer
+                          participants={roomData.participants}
+                          currentOwnerId={roomData.ownerId.toString()}
+                          onTransfer={handleOwnershipTransfer}
+                        />
+                      )}
+                    </SheetTitle>
+                  </SheetHeader>
+                  <ScrollArea className="h-full mt-4">
+                    <div className="space-y-2">
+                      {roomData.participants.map((participant: any) => (
+                        <div
+                          key={participant.userId}
+                          className="flex items-center gap-3 rounded-md border p-3"
+                          data-testid={`participant-${participant.userId}`}
+                        >
+                          <Avatar className="h-8 w-8">
+                            <AvatarFallback className="text-xs">
+                              {participant.username.slice(0, 2).toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm font-medium flex-1">
+                            {participant.username}
+                          </span>
+                          {participant.userId === roomData.ownerId.toString() && (
+                            <Badge
+                              variant="secondary"
+                              className="h-6 px-2"
+                              data-testid={`owner-badge-${participant.userId}`}
+                            >
+                              <Crown className="h-3 w-3 text-primary mr-1" />
+                              Owner
+                            </Badge>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </SheetContent>
+              </Sheet>
+
+              {/* Room Controls - For Owner */}
+              {isOwner && (
+                <RoomControls
+                  roomId={roomData._id}
+                  roomName={roomData.name}
+                  mode={roomData.mode}
+                  isOwner={isOwner}
+                  onModeChange={handleModeChange}
+                  onLeave={handleLeaveRoom}
+                />
+              )}
+              
+              {/* Leave Button - For Non-Owners */}
+              {!isOwner && (
+                <Button 
+                  variant="destructive" 
+                  size="sm" 
+                  onClick={handleLeaveRoom}
+                >
+                  Leave Room
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Main content: Video (left) and Chat (right) */}
+        <div className="flex-1 flex min-h-0">
+          {/* Video Section */}
+          <div className="flex-1 bg-black flex items-center justify-center">
+            <div className="w-full h-full">
+              <RoomVideo mode={roomData.mode} videoUrl={roomData.videoUrl} />
+            </div>
+          </div>
+
+          {/* Chat Sidebar */}
+          <div className="w-96 flex-shrink-0">
+            <ChatPanel messages={messagesList} onSendMessage={handleSendMessage} />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Mobile Layout: Stacked (video top, chat middle, controls bottom)
   return (
     <div className="h-full flex flex-col" data-testid="room-page">
-      {/* Mobile-first stacked layout: Video (top) → Chat (middle) → Navigation (bottom) */}
-      
       {/* Video Section - Top */}
       <div className="flex-shrink-0 bg-black">
         <div className="aspect-video">
@@ -162,7 +276,7 @@ export default function Room() {
       <div className="flex-shrink-0 border-t bg-background">
         <div className="p-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0 flex-1">
-            <h2 className="font-semibold truncate text-sm sm:text-base">{roomData.name}</h2>
+            <h2 className="font-semibold truncate text-sm">{roomData.name}</h2>
             <Badge variant="secondary" className="flex-shrink-0 text-xs">
               {roomData.mode === "screenshare" ? "Screen" : "Watch"}
             </Badge>
@@ -174,8 +288,7 @@ export default function Room() {
               <SheetTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-1.5">
                   <Users className="h-4 w-4" />
-                  <span className="hidden sm:inline">Participants</span>
-                  <span className="sm:hidden">{roomData.participants.length}</span>
+                  <span>{roomData.participants.length}</span>
                 </Button>
               </SheetTrigger>
               <SheetContent side="bottom" className="h-[80vh]">

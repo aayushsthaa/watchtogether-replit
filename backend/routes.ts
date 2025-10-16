@@ -419,7 +419,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  // POST /api/rooms/:id/join - Join room
+  // POST /api/rooms/:id/join - Join room (with single room restriction)
   app.post(
     '/api/rooms/:id/join',
     authenticateToken,
@@ -437,6 +437,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
 
         if (!alreadyJoined) {
+          // Single room restriction: Remove user from any other rooms first
+          await Room.updateMany(
+            { 'participants.userId': req.user?._id },
+            { $pull: { participants: { userId: req.user?._id } } }
+          );
+
+          // Add user to the new room
           room.participants.push({
             userId: req.user?._id!,
             username: req.user?.username!,

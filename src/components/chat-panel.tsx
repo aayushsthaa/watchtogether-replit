@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatMessage } from "./chat-message";
 import { SystemMessage } from "./system-message";
@@ -12,6 +13,7 @@ interface ChatPanelProps {
 
 export function ChatPanel({ messages, onSendMessage }: ChatPanelProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -21,12 +23,15 @@ export function ChatPanel({ messages, onSendMessage }: ChatPanelProps) {
 
   return (
     <div className="flex flex-col h-full border-l" data-testid="chat-panel">
-      <div className="p-4 border-b">
-        <h3 className="font-semibold">Chat</h3>
-        <p className="text-sm text-muted-foreground">
-          {messages.filter((m) => m.type !== "system").length} messages
-        </p>
-      </div>
+      {/* Only show header on desktop */}
+      {!isMobile && (
+        <div className="p-4 border-b">
+          <h3 className="font-semibold">Chat</h3>
+          <p className="text-sm text-muted-foreground">
+            {messages.filter((m) => m.type !== "system").length} messages
+          </p>
+        </div>
+      )}
       <ScrollArea className="flex-1" ref={scrollRef}>
         <div className="py-2 space-y-1">
           {messages.length === 0 ? (
@@ -44,7 +49,7 @@ export function ChatPanel({ messages, onSendMessage }: ChatPanelProps) {
           )}
         </div>
       </ScrollArea>
-      <ChatInput onSendMessage={onSendMessage} />
+      <ChatInput onSendMessage={onSendMessage} isMobile={isMobile} />
     </div>
   );
 }

@@ -5,9 +5,10 @@ import { Smile, Send } from "lucide-react";
 
 interface ChatInputProps {
   onSendMessage?: (content: string) => void;
+  isMobile?: boolean;
 }
 
-export function ChatInput({ onSendMessage }: ChatInputProps) {
+export function ChatInput({ onSendMessage, isMobile = false }: ChatInputProps) {
   const [message, setMessage] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -26,33 +27,33 @@ export function ChatInput({ onSendMessage }: ChatInputProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="border-t p-4">
-      <div className="flex gap-2">
+    <form onSubmit={handleSubmit} className={isMobile ? "border-t p-2" : "border-t p-4"}>
+      <div className="flex gap-2 items-end">
         <Textarea
           value={message}
           onChange={(e) => setMessage(e.target.value)}
           onKeyDown={handleKeyDown}
           placeholder="Type a message..."
-          className="resize-none min-h-[44px] max-h-32"
+          className={`resize-none ${isMobile ? "min-h-[36px] max-h-20 text-sm" : "min-h-[44px] max-h-32"}`}
           rows={1}
           data-testid="input-chat-message"
         />
-        <div className="flex flex-col gap-2">
+        <div className={`flex ${isMobile ? "flex-row gap-1" : "flex-col gap-2"}`}>
           <Button
             type="button"
             variant="ghost"
-            size="icon"
+            size={isMobile ? "sm" : "icon"}
             data-testid="button-emoji-picker"
           >
-            <Smile className="h-5 w-5" />
+            <Smile className={isMobile ? "h-4 w-4" : "h-5 w-5"} />
           </Button>
           <Button
             type="submit"
-            size="icon"
+            size={isMobile ? "sm" : "icon"}
             disabled={!message.trim()}
             data-testid="button-send-message"
           >
-            <Send className="h-5 w-5" />
+            <Send className={isMobile ? "h-4 w-4" : "h-5 w-5"} />
           </Button>
         </div>
       </div>
