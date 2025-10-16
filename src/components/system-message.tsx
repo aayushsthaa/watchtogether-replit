@@ -1,4 +1,4 @@
-import type { Message } from "@shared/schema";
+import type { Message } from "@/lib/schema";
 
 interface SystemMessageProps {
   message: Message;

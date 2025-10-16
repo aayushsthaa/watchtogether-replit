@@ -1,5 +1,5 @@
 import { MonitorPlay, Tv } from "lucide-react";
-import type { RoomMode } from "@shared/schema";
+import type { RoomMode } from "@/lib/schema";
 
 interface RoomVideoProps {
   mode: RoomMode;

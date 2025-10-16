@@ -1,7 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertUserSchema, type InsertUser, type User } from "@shared/schema";
+import { useLocation } from "wouter";
+import { insertUserSchema, type InsertUser, type User } from "@/lib/schema";
+import { useAuth } from "@/contexts/AuthContext";
+import { useUsers, useCreateUser, useUpdateUser, useDeleteUser } from "@/hooks/useUsers";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -40,40 +44,24 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Search, UserPlus, Edit, Trash2, Shield, Users } from "lucide-react";
 
-// Mock data
-const mockUsers: User[] = [
-  {
-    _id: "1",
-    username: "admin",
-    password: "",
-    isAdmin: true,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    _id: "2",
-    username: "john_doe",
-    password: "",
-    isAdmin: false,
-    createdAt: new Date().toISOString(),
-  },
-  {
-    _id: "3",
-    username: "jane_smith",
-    password: "",
-    isAdmin: false,
-    createdAt: new Date().toISOString(),
-  },
-];
-
 export default function AdminDashboard() {
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [, setLocation] = useLocation();
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
+
+  const { data: users = [], isLoading: usersLoading } = useUsers();
+  const usersList = (users || []) as User[];
+  const createUserMutation = useCreateUser();
+  const updateUserMutation = useUpdateUser();
+  const deleteUserMutation = useDeleteUser();
 
   const createForm = useForm<InsertUser>({
     resolver: zodResolver(insertUserSchema),
@@ -92,54 +80,133 @@ export default function AdminDashboard() {
     },
   });
 
-  const filteredUsers = users.filter((user) =>
-    user.username.toLowerCase().includes(searchQuery.toLowerCase())
+  useEffect(() => {
+    if (!authLoading) {
+      if (!isAuthenticated) {
+        setLocation("/login");
+        return;
+      }
+      if (!user?.isAdmin) {
+        setLocation("/rooms");
+        return;
+      }
+    }
+  }, [isAuthenticated, user, authLoading, setLocation]);
+
+  if (authLoading || !isAuthenticated || !user?.isAdmin) {
+    return null;
+  }
+
+  const filteredUsers = usersList.filter((u: User) =>
+    u.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const onCreateUser = (data: InsertUser) => {
-    const newUser: User = {
-      _id: String(Date.now()),
-      ...data,
-      createdAt: new Date().toISOString(),
-    };
-    setUsers([...users, newUser]);
-    setCreateDialogOpen(false);
-    createForm.reset();
+  const onCreateUser = async (data: InsertUser) => {
+    try {
+      await createUserMutation.mutateAsync(data);
+      setCreateDialogOpen(false);
+      createForm.reset();
+      toast({
+        title: "User created",
+        description: `User "${data.username}" has been created successfully.`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Failed to create user",
+        description: error.message || "Something went wrong",
+        variant: "destructive",
+      });
+    }
   };
 
-  const onEditUser = (data: Partial<InsertUser>) => {
+  const onEditUser = async (data: Partial<InsertUser>) => {
     if (!selectedUser) return;
-    setUsers(
-      users.map((u) =>
-        u._id === selectedUser._id ? { ...u, ...data } : u
-      )
-    );
-    setEditDialogOpen(false);
-    setSelectedUser(null);
-    editForm.reset();
+    try {
+      const updateData: any = {};
+      if (data.username) updateData.username = data.username;
+      if (data.password) updateData.password = data.password;
+      if (data.isAdmin !== undefined) updateData.isAdmin = data.isAdmin;
+
+      await updateUserMutation.mutateAsync({
+        id: selectedUser._id,
+        data: updateData,
+      });
+      setEditDialogOpen(false);
+      setSelectedUser(null);
+      editForm.reset();
+      toast({
+        title: "User updated",
+        description: "User has been updated successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Failed to update user",
+        description: error.message || "Something went wrong",
+        variant: "destructive",
+      });
+    }
   };
 
-  const onDeleteUser = () => {
+  const onDeleteUser = async () => {
     if (!selectedUser) return;
-    setUsers(users.filter((u) => u._id !== selectedUser._id));
-    setDeleteDialogOpen(false);
-    setSelectedUser(null);
+    try {
+      await deleteUserMutation.mutateAsync(selectedUser._id);
+      setDeleteDialogOpen(false);
+      setSelectedUser(null);
+      toast({
+        title: "User deleted",
+        description: "User has been deleted successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Failed to delete user",
+        description: error.message || "Something went wrong",
+        variant: "destructive",
+      });
+    }
   };
 
-  const openEditDialog = (user: User) => {
-    setSelectedUser(user);
+  const openEditDialog = (u: User) => {
+    setSelectedUser(u);
     editForm.reset({
-      username: user.username,
+      username: u.username,
       password: "",
-      isAdmin: user.isAdmin,
+      isAdmin: u.isAdmin,
     });
     setEditDialogOpen(true);
   };
 
-  const openDeleteDialog = (user: User) => {
-    setSelectedUser(user);
+  const openDeleteDialog = (u: User) => {
+    setSelectedUser(u);
     setDeleteDialogOpen(true);
   };
+
+  if (usersLoading) {
+    return (
+      <div className="h-full overflow-auto">
+        <div className="container max-w-7xl mx-auto p-6 space-y-6">
+          <div className="space-y-1">
+            <Skeleton className="h-9 w-64" />
+            <Skeleton className="h-5 w-48" />
+          </div>
+          <Skeleton className="h-10 w-full" />
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <Card key={i}>
+                <CardHeader>
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-10 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full overflow-auto">
@@ -184,7 +251,7 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold" data-testid="text-total-users">
-                {users.length}
+                {usersList.length}
               </div>
             </CardContent>
           </Card>
@@ -195,7 +262,7 @@ export default function AdminDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold" data-testid="text-admin-count">
-                {users.filter((u) => u.isAdmin).length}
+                {usersList.filter((u: User) => u.isAdmin).length}
               </div>
             </CardContent>
           </Card>
@@ -218,31 +285,31 @@ export default function AdminDashboard() {
           </Card>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredUsers.map((user) => (
+            {filteredUsers.map((u: User) => (
               <Card
-                key={user._id}
+                key={u._id}
                 className="overflow-hidden"
-                data-testid={`card-user-${user._id}`}
+                data-testid={`card-user-${u._id}`}
               >
                 <CardHeader className="gap-2 space-y-0">
                   <div className="flex items-start gap-3">
                     <Avatar className="h-10 w-10">
                       <AvatarFallback>
-                        {user.username.slice(0, 2).toUpperCase()}
+                        {u.username.slice(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <CardTitle
                         className="text-base truncate"
-                        data-testid={`text-username-${user._id}`}
+                        data-testid={`text-username-${u._id}`}
                       >
-                        {user.username}
+                        {u.username}
                       </CardTitle>
-                      {user.isAdmin && (
+                      {u.isAdmin && (
                         <Badge
                           variant="secondary"
                           className="mt-1"
-                          data-testid={`badge-admin-${user._id}`}
+                          data-testid={`badge-admin-${u._id}`}
                         >
                           <Shield className="mr-1 h-3 w-3" />
                           Admin
@@ -256,8 +323,8 @@ export default function AdminDashboard() {
                     variant="outline"
                     size="sm"
                     className="flex-1"
-                    onClick={() => openEditDialog(user)}
-                    data-testid={`button-edit-${user._id}`}
+                    onClick={() => openEditDialog(u)}
+                    data-testid={`button-edit-${u._id}`}
                   >
                     <Edit className="mr-1 h-3 w-3" />
                     Edit
@@ -266,8 +333,8 @@ export default function AdminDashboard() {
                     variant="outline"
                     size="sm"
                     className="flex-1"
-                    onClick={() => openDeleteDialog(user)}
-                    data-testid={`button-delete-${user._id}`}
+                    onClick={() => openDeleteDialog(u)}
+                    data-testid={`button-delete-${u._id}`}
                   >
                     <Trash2 className="mr-1 h-3 w-3" />
                     Delete
@@ -357,8 +424,12 @@ export default function AdminDashboard() {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" data-testid="button-submit-create">
-                    Create User
+                  <Button
+                    type="submit"
+                    disabled={createUserMutation.isPending}
+                    data-testid="button-submit-create"
+                  >
+                    {createUserMutation.isPending ? "Creating..." : "Create User"}
                   </Button>
                 </DialogFooter>
               </form>
@@ -445,8 +516,12 @@ export default function AdminDashboard() {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" data-testid="button-submit-edit">
-                    Save Changes
+                  <Button
+                    type="submit"
+                    disabled={updateUserMutation.isPending}
+                    data-testid="button-submit-edit"
+                  >
+                    {updateUserMutation.isPending ? "Saving..." : "Save Changes"}
                   </Button>
                 </DialogFooter>
               </form>
@@ -471,10 +546,11 @@ export default function AdminDashboard() {
               </AlertDialogCancel>
               <AlertDialogAction
                 onClick={onDeleteUser}
+                disabled={deleteUserMutation.isPending}
                 className="bg-destructive text-destructive-foreground border-destructive-border"
                 data-testid="button-confirm-delete"
               >
-                Delete
+                {deleteUserMutation.isPending ? "Deleting..." : "Delete"}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

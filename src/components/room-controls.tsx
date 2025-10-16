@@ -17,7 +17,7 @@ import {
   LogOut,
   Settings,
 } from "lucide-react";
-import type { RoomMode } from "@shared/schema";
+import type { RoomMode } from "@/lib/schema";
 
 interface RoomControlsProps {
   roomId: string;

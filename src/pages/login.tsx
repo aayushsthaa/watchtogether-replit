@@ -1,6 +1,9 @@
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { loginSchema, type LoginCredentials } from "@shared/schema";
+import { useLocation } from "wouter";
+import { loginSchema, type LoginCredentials } from "@/lib/schema";
+import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,9 +21,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
 import { Video } from "lucide-react";
 
 export default function Login() {
+  const [, setLocation] = useLocation();
+  const { login, isAuthenticated } = useAuth();
+  const { toast } = useToast();
+
   const form = useForm<LoginCredentials>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -29,9 +37,27 @@ export default function Login() {
     },
   });
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      setLocation("/rooms");
+    }
+  }, [isAuthenticated, setLocation]);
+
   const onSubmit = async (data: LoginCredentials) => {
-    console.log("Login:", data);
-    // TODO: Implement login logic
+    try {
+      await login(data.username, data.password);
+      toast({
+        title: "Welcome back!",
+        description: "You have successfully signed in.",
+      });
+      setLocation("/rooms");
+    } catch (error: any) {
+      toast({
+        title: "Login failed",
+        description: error.message || "Invalid username or password",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -92,8 +118,9 @@ export default function Login() {
                 type="submit"
                 className="w-full"
                 data-testid="button-login"
+                disabled={form.formState.isSubmitting}
               >
-                Sign In
+                {form.formState.isSubmitting ? "Signing in..." : "Sign In"}
               </Button>
             </form>
           </Form>

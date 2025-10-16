@@ -14,6 +14,7 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Video,
   Users,
@@ -22,50 +23,31 @@ import {
   Circle,
   LogOut,
 } from "lucide-react";
-import type { Room } from "@shared/schema";
-
-// Mock current user
-const CURRENT_USER = {
-  _id: "1",
-  username: "admin",
-  isAdmin: true,
-};
-
-// Mock active rooms
-const mockRooms: Room[] = [
-  {
-    _id: "1",
-    name: "Movie Night",
-    ownerId: "1",
-    ownerUsername: "admin",
-    mode: "watchparty",
-    participants: [
-      { userId: "1", username: "admin", joinedAt: new Date().toISOString() },
-      { userId: "2", username: "john_doe", joinedAt: new Date().toISOString() },
-    ],
-    isActive: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    _id: "2",
-    name: "Code Review",
-    ownerId: "2",
-    ownerUsername: "john_doe",
-    mode: "screenshare",
-    participants: [
-      { userId: "2", username: "john_doe", joinedAt: new Date().toISOString() },
-    ],
-    isActive: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
+import type { Room } from "@/lib/schema";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRooms } from "@/hooks/useRooms";
 
 export function AppSidebar() {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
+  const { user, isAuthenticated, logout } = useAuth();
+  const { data: rooms, isLoading: roomsLoading } = useRooms();
 
   const isActive = (path: string) => location === path;
+
+  // Filter active rooms with participants
+  const activeRooms = ((rooms || []) as Room[]).filter(
+    (room) => room.isActive && room.participants.length > 0
+  );
+
+  const handleLogout = async () => {
+    await logout();
+    setLocation("/login");
+  };
+
+  // Don't render sidebar if not authenticated
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <Sidebar data-testid="app-sidebar">
@@ -98,7 +80,7 @@ export function AppSidebar() {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              {CURRENT_USER.isAdmin && (
+              {user?.isAdmin && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
@@ -122,12 +104,17 @@ export function AppSidebar() {
           <SidebarGroupLabel>Active Rooms</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {mockRooms.length === 0 ? (
+              {roomsLoading ? (
+                <div className="px-3 py-2 space-y-2">
+                  <Skeleton className="h-10 w-full" />
+                  <Skeleton className="h-10 w-full" />
+                </div>
+              ) : activeRooms.length === 0 ? (
                 <div className="px-3 py-6 text-center text-sm text-muted-foreground">
                   No active rooms
                 </div>
               ) : (
-                mockRooms.map((room) => (
+                activeRooms.map((room: Room) => (
                   <SidebarMenuItem key={room._id}>
                     <SidebarMenuButton
                       asChild
@@ -145,7 +132,7 @@ export function AppSidebar() {
                         <div className="flex-1 min-w-0">
                           <div className="truncate text-sm">{room.name}</div>
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                            {room.ownerId === CURRENT_USER._id && (
+                            {user && room.ownerId === user._id && (
                               <Crown className="h-3 w-3" />
                             )}
                             <span className="truncate">
@@ -172,14 +159,14 @@ export function AppSidebar() {
             <SidebarMenuButton className="w-full" data-testid="nav-user-profile">
               <Avatar className="h-6 w-6">
                 <AvatarFallback className="text-xs">
-                  {CURRENT_USER.username.slice(0, 2).toUpperCase()}
+                  {user?.username.slice(0, 2).toUpperCase() || "??"}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1 text-left min-w-0">
                 <div className="text-sm font-medium truncate">
-                  {CURRENT_USER.username}
+                  {user?.username || "Unknown"}
                 </div>
-                {CURRENT_USER.isAdmin && (
+                {user?.isAdmin && (
                   <Badge variant="secondary" className="h-4 px-1 text-xs">
                     Admin
                   </Badge>
@@ -188,11 +175,9 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild data-testid="nav-logout">
-              <Link href="/login">
-                <LogOut className="h-4 w-4" />
-                <span>Sign Out</span>
-              </Link>
+            <SidebarMenuButton onClick={handleLogout} data-testid="nav-logout">
+              <LogOut className="h-4 w-4" />
+              <span>Sign Out</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>

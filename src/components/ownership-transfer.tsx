@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Crown } from "lucide-react";
-import type { Participant } from "@shared/schema";
+import type { Participant } from "@/lib/schema";
 
 interface OwnershipTransferProps {
   participants: Participant[];

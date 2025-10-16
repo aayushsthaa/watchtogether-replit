@@ -1,5 +1,5 @@
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import type { Message } from "@shared/schema";
+import type { Message } from "@/lib/schema";
 
 interface ChatMessageProps {
   message: Message;

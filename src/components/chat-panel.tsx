@@ -3,7 +3,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChatMessage } from "./chat-message";
 import { SystemMessage } from "./system-message";
 import { ChatInput } from "./chat-input";
-import type { Message } from "@shared/schema";
+import type { Message } from "@/lib/schema";
 
 interface ChatPanelProps {
   messages: Message[];

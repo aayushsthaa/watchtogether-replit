@@ -1,13 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "wouter";
 import {
   insertRoomSchema,
   type InsertRoom,
-  type Room,
-  type RoomMode,
-} from "@shared/schema";
+} from "@/lib/schema";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRooms, useCreateRoom } from "@/hooks/useRooms";
+import type { Room } from "@/lib/schema";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -37,44 +38,19 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useToast } from "@/hooks/use-toast";
 import { Plus, Users, Crown, MonitorPlay, Video } from "lucide-react";
 
-// Mock data
-const mockRooms: Room[] = [
-  {
-    _id: "1",
-    name: "Movie Night",
-    ownerId: "1",
-    ownerUsername: "admin",
-    mode: "watchparty",
-    videoUrl: "https://youtube.com/watch?v=example",
-    participants: [
-      { userId: "1", username: "admin", joinedAt: new Date().toISOString() },
-      { userId: "2", username: "john_doe", joinedAt: new Date().toISOString() },
-    ],
-    isActive: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    _id: "2",
-    name: "Code Review Session",
-    ownerId: "2",
-    ownerUsername: "john_doe",
-    mode: "screenshare",
-    participants: [
-      { userId: "2", username: "john_doe", joinedAt: new Date().toISOString() },
-    ],
-    isActive: true,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-];
-
 export default function Rooms() {
-  const [, setLocation] = useLocation();
-  const [rooms, setRooms] = useState<Room[]>(mockRooms);
+  const [location, setLocation] = useLocation();
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const { toast } = useToast();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+
+  const { data: rooms, isLoading } = useRooms();
+  const roomsList = (rooms || []) as Room[];
+  const createRoomMutation = useCreateRoom();
 
   const form = useForm<InsertRoom>({
     resolver: zodResolver(insertRoomSchema),
@@ -87,37 +63,68 @@ export default function Rooms() {
 
   const selectedMode = form.watch("mode");
 
-  const onCreateRoom = (data: InsertRoom) => {
-    const newRoom: Room = {
-      _id: String(Date.now()),
-      ...data,
-      ownerId: "1", // Mock current user
-      ownerUsername: "admin",
-      participants: [
-        {
-          userId: "1",
-          username: "admin",
-          joinedAt: new Date().toISOString(),
-        },
-      ],
-      isActive: true,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    setRooms([newRoom, ...rooms]);
-    setCreateDialogOpen(false);
-    form.reset();
-    setLocation(`/room/${newRoom._id}`);
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      setLocation("/login");
+    }
+  }, [isAuthenticated, authLoading, setLocation]);
+
+  if (authLoading || !isAuthenticated) {
+    return null;
+  }
+
+  const onCreateRoom = async (data: InsertRoom) => {
+    try {
+      const newRoom = await createRoomMutation.mutateAsync(data) as Room;
+      setCreateDialogOpen(false);
+      form.reset();
+      toast({
+        title: "Room created!",
+        description: `"${data.name}" has been created successfully.`,
+      });
+      setLocation(`/room/${newRoom._id}`);
+    } catch (error: any) {
+      toast({
+        title: "Failed to create room",
+        description: error.message || "Something went wrong",
+        variant: "destructive",
+      });
+    }
   };
 
   const joinRoom = (roomId: string) => {
     setLocation(`/room/${roomId}`);
   };
 
+  if (isLoading) {
+    return (
+      <div className="h-full overflow-auto">
+        <div className="container max-w-7xl mx-auto p-6 space-y-6">
+          <div className="space-y-1">
+            <Skeleton className="h-9 w-48" />
+            <Skeleton className="h-5 w-72" />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <Card key={i} className="overflow-hidden">
+                <CardHeader>
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                </CardHeader>
+                <CardContent>
+                  <Skeleton className="h-10 w-full" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full overflow-auto">
       <div className="container max-w-7xl mx-auto p-6 space-y-6">
-        {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="space-y-1">
             <h1 className="text-3xl font-semibold tracking-tight">
@@ -136,8 +143,7 @@ export default function Rooms() {
           </Button>
         </div>
 
-        {/* Room Grid */}
-        {rooms.length === 0 ? (
+        {roomsList.length === 0 ? (
           <Card className="p-12">
             <div className="flex flex-col items-center justify-center text-center space-y-3">
               <Video className="h-12 w-12 text-muted-foreground" />
@@ -151,7 +157,7 @@ export default function Rooms() {
           </Card>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {rooms.map((room) => (
+            {roomsList.map((room: Room) => (
               <Card
                 key={room._id}
                 className="overflow-hidden hover-elevate"
@@ -213,7 +219,6 @@ export default function Rooms() {
           </div>
         )}
 
-        {/* Create Room Dialog */}
         <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
           <DialogContent data-testid="dialog-create-room">
             <DialogHeader>
@@ -330,8 +335,12 @@ export default function Rooms() {
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" data-testid="button-submit-create-room">
-                    Create Room
+                  <Button 
+                    type="submit" 
+                    data-testid="button-submit-create-room"
+                    disabled={createRoomMutation.isPending}
+                  >
+                    {createRoomMutation.isPending ? "Creating..." : "Create Room"}
                   </Button>
                 </DialogFooter>
               </form>
