@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "wouter";
@@ -26,7 +26,7 @@ import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { User, Lock, ArrowLeft } from "lucide-react";
+import { User, Lock, ArrowLeft, Upload, X } from "lucide-react";
 
 export default function Profile() {
   const [, setLocation] = useLocation();
@@ -34,6 +34,7 @@ export default function Profile() {
   const { toast } = useToast();
   const [isUpdating, setIsUpdating] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const profileForm = useForm<UpdateProfile>({
     resolver: zodResolver(updateProfileSchema),
@@ -51,11 +52,60 @@ export default function Profile() {
     },
   });
 
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a valid image (jpg, png, gif, or webp)",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate file size (2MB)
+    const maxSize = 2 * 1024 * 1024; // 2MB in bytes
+    if (file.size > maxSize) {
+      toast({
+        title: "File too large",
+        description: "Please upload an image smaller than 2MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Convert to base64
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const base64String = e.target?.result as string;
+      profileForm.setValue("avatarUrl", base64String);
+    };
+    reader.onerror = () => {
+      toast({
+        title: "Failed to read file",
+        description: "Please try again",
+        variant: "destructive",
+      });
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveAvatar = () => {
+    profileForm.setValue("avatarUrl", "");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const onUpdateProfile = async (data: UpdateProfile) => {
     setIsUpdating(true);
     try {
       const updatedUser = await api.profile.update(data);
-      updateUser(updatedUser);
+      updateUser(updatedUser as any);
       toast({
         title: "Profile updated!",
         description: "Your profile has been updated successfully.",
@@ -131,27 +181,47 @@ export default function Profile() {
                 className="space-y-6"
               >
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                  <Avatar className="h-20 w-20">
-                    {avatarUrl && <AvatarImage src={avatarUrl} alt={user?.username} />}
-                    <AvatarFallback className="text-2xl">
-                      {user?.username.slice(0, 2).toUpperCase() || "??"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1 w-full">
+                  <div className="relative">
+                    <Avatar className="h-20 w-20" data-testid="avatar-preview">
+                      {avatarUrl && <AvatarImage src={avatarUrl} alt={user?.username} />}
+                      <AvatarFallback className="text-2xl">
+                        {user?.username.slice(0, 2).toUpperCase() || "??"}
+                      </AvatarFallback>
+                    </Avatar>
+                    {avatarUrl && (
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                        onClick={handleRemoveAvatar}
+                        data-testid="button-remove-avatar"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex-1 w-full space-y-2">
                     <FormField
                       control={profileForm.control}
                       name="avatarUrl"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>Avatar URL</FormLabel>
+                          <FormLabel>Profile Photo</FormLabel>
                           <FormControl>
-                            <Input
-                              placeholder="https://example.com/avatar.jpg"
-                              {...field}
-                            />
+                            <div className="space-y-2">
+                              <Input
+                                type="file"
+                                accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                                onChange={handleFileChange}
+                                ref={fileInputRef}
+                                className="cursor-pointer"
+                                data-testid="input-avatar-file"
+                              />
+                            </div>
                           </FormControl>
                           <FormDescription>
-                            Enter a URL for your profile picture
+                            Upload a photo from your device (jpg, png, gif, webp - max 2MB)
                           </FormDescription>
                           <FormMessage />
                         </FormItem>

@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Smile, Send } from "lucide-react";
+import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
 
 interface ChatInputProps {
   onSendMessage?: (content: string) => void;
@@ -10,6 +12,7 @@ interface ChatInputProps {
 
 export function ChatInput({ onSendMessage, isMobile = false }: ChatInputProps) {
   const [message, setMessage] = useState("");
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,6 +29,11 @@ export function ChatInput({ onSendMessage, isMobile = false }: ChatInputProps) {
     }
   };
 
+  const handleEmojiClick = (emojiData: EmojiClickData) => {
+    setMessage((prev) => prev + emojiData.emoji);
+    setShowEmojiPicker(false);
+  };
+
   return (
     <form onSubmit={handleSubmit} className={isMobile ? "border-t p-2" : "border-t p-4"}>
       <div className="flex gap-2 items-end">
@@ -39,14 +47,25 @@ export function ChatInput({ onSendMessage, isMobile = false }: ChatInputProps) {
           data-testid="input-chat-message"
         />
         <div className={`flex ${isMobile ? "flex-row gap-1" : "flex-col gap-2"}`}>
-          <Button
-            type="button"
-            variant="ghost"
-            size={isMobile ? "sm" : "icon"}
-            data-testid="button-emoji-picker"
-          >
-            <Smile className={isMobile ? "h-4 w-4" : "h-5 w-5"} />
-          </Button>
+          <Popover open={showEmojiPicker} onOpenChange={setShowEmojiPicker}>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size={isMobile ? "sm" : "icon"}
+                data-testid="button-emoji-picker"
+              >
+                <Smile className={isMobile ? "h-4 w-4" : "h-5 w-5"} />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-full p-0 border-none" align="end" side="top">
+              <EmojiPicker
+                onEmojiClick={handleEmojiClick}
+                width={isMobile ? 280 : 350}
+                height={isMobile ? 350 : 400}
+              />
+            </PopoverContent>
+          </Popover>
           <Button
             type="submit"
             size={isMobile ? "sm" : "icon"}

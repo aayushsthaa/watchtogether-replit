@@ -1,12 +1,17 @@
+import { useEffect } from "react";
 import { MonitorPlay, Tv } from "lucide-react";
-import type { RoomMode } from "@/lib/schema";
+import type { RoomMode, VideoSync } from "@/lib/schema";
+import { useYouTubePlayer } from "@/hooks/useYouTubePlayer";
 
 interface RoomVideoProps {
   mode: RoomMode;
   videoUrl?: string;
+  isOwner: boolean;
+  onVideoSync?: (syncData: VideoSync) => void;
+  videoSyncEvent?: VideoSync | null;
 }
 
-export function RoomVideo({ mode, videoUrl }: RoomVideoProps) {
+export function RoomVideo({ mode, videoUrl, isOwner, onVideoSync, videoSyncEvent }: RoomVideoProps) {
   // Extract YouTube video ID from URL
   const getYouTubeId = (url: string) => {
     const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/);
@@ -15,15 +20,34 @@ export function RoomVideo({ mode, videoUrl }: RoomVideoProps) {
 
   const youtubeId = videoUrl ? getYouTubeId(videoUrl) : null;
 
+  const { playerContainerRef, isReady, syncVideo } = useYouTubePlayer({
+    videoId: youtubeId,
+    isOwner,
+    onStateChange: (action, currentTime) => {
+      if (isOwner && onVideoSync) {
+        onVideoSync({
+          action,
+          currentTime,
+          videoUrl,
+        });
+      }
+    },
+  });
+
+  // Handle incoming video sync events (for non-owners)
+  useEffect(() => {
+    if (!isOwner && videoSyncEvent && isReady) {
+      syncVideo(videoSyncEvent.action, videoSyncEvent.currentTime);
+    }
+  }, [isOwner, videoSyncEvent, isReady, syncVideo]);
+
   return (
     <div className="w-full bg-black rounded-md overflow-hidden" data-testid="room-video-container">
       <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
         {mode === "watchparty" && youtubeId ? (
-          <iframe
+          <div 
+            ref={playerContainerRef} 
             className="absolute inset-0 w-full h-full"
-            src={`https://www.youtube.com/embed/${youtubeId}?enablejsapi=1`}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
             data-testid="youtube-player"
           />
         ) : (

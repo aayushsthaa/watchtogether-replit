@@ -129,7 +129,24 @@ export const authResponseSchema = z.object({
 // Profile Update Schema
 export const updateProfileSchema = z.object({
   username: z.string().min(3).max(30).optional(),
-  avatarUrl: z.string().url().optional().or(z.literal("")),
+  avatarUrl: z.string()
+    .optional()
+    .refine((val) => {
+      if (!val || val === '') return true;
+      // Check if it's a base64 image
+      if (val.startsWith('data:image/')) {
+        const matches = val.match(/^data:image\/(jpeg|jpg|png|gif|webp);base64,(.+)$/);
+        if (!matches) return false;
+        
+        // Check size (base64 adds ~33% overhead, so ~2.7MB base64 = ~2MB image)
+        const base64Length = matches[2].length;
+        const sizeInBytes = (base64Length * 3) / 4;
+        const sizeInMB = sizeInBytes / (1024 * 1024);
+        return sizeInMB <= 2.5; // Allow up to 2.5MB to account for ~2MB images
+      }
+      // Legacy: Also accept regular URLs
+      return /^https?:\/\/.+/.test(val);
+    }, "Invalid image format or size. Must be a valid image (jpg, png, gif, webp) under 2MB"),
 });
 
 export const changePasswordSchema = z.object({

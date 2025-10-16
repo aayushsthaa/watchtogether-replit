@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRoom, useJoinRoom, useLeaveRoom, useUpdateRoom, useTransferOwnership } from "@/hooks/useRooms";
@@ -17,7 +17,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Crown, Users } from "lucide-react";
-import type { Room as RoomType, Message } from "@/lib/schema";
+import type { Room as RoomType, Message, VideoSync } from "@/lib/schema";
 
 export default function Room() {
   const params = useParams<{ id: string }>();
@@ -36,7 +36,13 @@ export default function Room() {
   const transferOwnershipMutation = useTransferOwnership(params.id!);
   const sendMessageMutation = useSendMessage(params.id!);
   
-  useWebSocket(params.id);
+  const [videoSyncEvent, setVideoSyncEvent] = useState<VideoSync | null>(null);
+  
+  const { sendMessage } = useWebSocket(params.id, {
+    onVideoSync: (data: VideoSync) => {
+      setVideoSyncEvent(data);
+    },
+  });
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -56,7 +62,7 @@ export default function Room() {
     return null;
   }
 
-  const isOwner = roomData && user && roomData.ownerId.toString() === user._id;
+  const isOwner = !!(roomData && user && roomData.ownerId.toString() === user._id);
 
   const handleModeChange = async (newMode: RoomType["mode"]) => {
     try {
@@ -113,6 +119,13 @@ export default function Room() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleVideoSync = (syncData: VideoSync) => {
+    sendMessage({
+      type: 'video_sync',
+      data: syncData,
+    });
   };
 
   if (roomLoading || messagesLoading) {
@@ -244,7 +257,13 @@ export default function Room() {
           {/* Video Section */}
           <div className="flex-1 bg-black flex items-center justify-center">
             <div className="w-full h-full">
-              <RoomVideo mode={roomData.mode} videoUrl={roomData.videoUrl} />
+              <RoomVideo 
+                mode={roomData.mode} 
+                videoUrl={roomData.videoUrl}
+                isOwner={isOwner}
+                onVideoSync={handleVideoSync}
+                videoSyncEvent={videoSyncEvent}
+              />
             </div>
           </div>
 
@@ -263,7 +282,13 @@ export default function Room() {
       {/* Video Section - Top */}
       <div className="flex-shrink-0 bg-black">
         <div className="aspect-video">
-          <RoomVideo mode={roomData.mode} videoUrl={roomData.videoUrl} />
+          <RoomVideo 
+            mode={roomData.mode} 
+            videoUrl={roomData.videoUrl}
+            isOwner={isOwner}
+            onVideoSync={handleVideoSync}
+            videoSyncEvent={videoSyncEvent}
+          />
         </div>
       </div>
 

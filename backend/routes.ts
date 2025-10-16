@@ -108,8 +108,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       body('username').optional().isLength({ min: 3, max: 30 }).withMessage('Username must be 3-30 characters'),
       body('avatarUrl').optional().custom((value) => {
         if (!value || value === '') return true;
+        
+        // Check if it's a base64 image
+        if (value.startsWith('data:image/')) {
+          const matches = value.match(/^data:image\/(jpeg|jpg|png|gif|webp);base64,(.+)$/);
+          if (!matches) return false;
+          
+          // Check size (base64 adds ~33% overhead, so ~2.7MB base64 = ~2MB image)
+          const base64Length = matches[2].length;
+          const sizeInBytes = (base64Length * 3) / 4;
+          const sizeInMB = sizeInBytes / (1024 * 1024);
+          if (sizeInMB > 2.5) return false;
+          
+          return true;
+        }
+        
+        // Legacy: Also accept regular URLs
         return /^https?:\/\/.+/.test(value);
-      }).withMessage('Invalid avatar URL'),
+      }).withMessage('Invalid image format or size. Must be a valid image (jpg, png, gif, webp) under 2MB'),
     ],
     validateRequest,
     async (req: AuthRequest, res) => {

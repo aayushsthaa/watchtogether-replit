@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface WebSocketMessage {
-  type: 'message' | 'user_joined' | 'user_left' | 'mode_changed' | 'ownership_transferred' | 'room_updated';
+  type: 'message' | 'user_joined' | 'user_left' | 'mode_changed' | 'ownership_transferred' | 'room_updated' | 'video_sync';
   data: any;
   roomId?: string;
   userId?: string;
@@ -11,11 +11,21 @@ interface WebSocketMessage {
   timestamp?: string;
 }
 
-export function useWebSocket(roomId: string | undefined) {
+interface UseWebSocketOptions {
+  onVideoSync?: (data: any) => void;
+}
+
+export function useWebSocket(roomId: string | undefined, options?: UseWebSocketOptions) {
   const wsRef = useRef<WebSocket | null>(null);
   const queryClient = useQueryClient();
   const { getToken } = useAuth();
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
+  const onVideoSyncRef = useRef(options?.onVideoSync);
+
+  // Update ref when callback changes
+  useEffect(() => {
+    onVideoSyncRef.current = options?.onVideoSync;
+  }, [options?.onVideoSync]);
 
   const connect = useCallback(() => {
     if (!roomId) return;
@@ -46,6 +56,12 @@ export function useWebSocket(roomId: string | undefined) {
           switch (message.type) {
             case 'message':
               queryClient.invalidateQueries({ queryKey: ['rooms', roomId, 'messages'] });
+              break;
+
+            case 'video_sync':
+              if (onVideoSyncRef.current) {
+                onVideoSyncRef.current(message.data);
+              }
               break;
 
             case 'user_joined':
