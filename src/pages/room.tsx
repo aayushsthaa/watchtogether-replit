@@ -9,6 +9,7 @@ import { RoomVideo } from "@/components/room-video";
 import { RoomControls } from "@/components/room-controls";
 import { OwnershipTransfer } from "@/components/ownership-transfer";
 import { ChatPanel } from "@/components/chat-panel";
+import { BottomNav, type BottomNavTab } from "@/components/bottom-nav";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -37,6 +38,7 @@ export default function Room() {
   const sendMessageMutation = useSendMessage(params.id!);
   
   const [videoSyncEvent, setVideoSyncEvent] = useState<VideoSync | null>(null);
+  const [activeTab, setActiveTab] = useState<BottomNavTab>("chat");
   
   const { sendMessage } = useWebSocket(params.id, {
     onVideoSync: (data: VideoSync) => {
@@ -276,30 +278,12 @@ export default function Room() {
     );
   }
 
-  // Mobile Layout: Stacked (video top, chat middle, controls bottom)
+  // Mobile Layout: Stacked (video top, content middle, bottom nav)
   return (
-    <div className="h-full flex flex-col" data-testid="room-page">
-      {/* Video Section - Top */}
-      <div className="flex-shrink-0 bg-black">
-        <div className="aspect-video">
-          <RoomVideo 
-            mode={roomData.mode} 
-            videoUrl={roomData.videoUrl}
-            isOwner={isOwner}
-            onVideoSync={handleVideoSync}
-            videoSyncEvent={videoSyncEvent}
-          />
-        </div>
-      </div>
-
-      {/* Chat Section - Middle (flexible height) */}
-      <div className="flex-1 min-h-0 border-t">
-        <ChatPanel messages={messagesList} onSendMessage={handleSendMessage} />
-      </div>
-
-      {/* Navigation/Controls - Bottom (fixed) */}
-      <div className="flex-shrink-0 border-t bg-background">
-        <div className="p-3 flex items-center justify-between gap-2">
+    <div className="h-full flex flex-col pb-16" data-testid="room-page">
+      {/* Header with room info and controls */}
+      <div className="flex-shrink-0 border-b bg-background p-3">
+        <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <h2 className="font-semibold truncate text-sm">{roomData.name}</h2>
             <Badge variant="secondary" className="flex-shrink-0 text-xs">
@@ -308,60 +292,6 @@ export default function Room() {
           </div>
           
           <div className="flex items-center gap-2 flex-shrink-0">
-            {/* Participants Drawer */}
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5">
-                  <Users className="h-4 w-4" />
-                  <span>{roomData.participants.length}</span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="bottom" className="h-[80vh]">
-                <SheetHeader>
-                  <SheetTitle className="flex items-center justify-between">
-                    <span>Participants ({roomData.participants.length})</span>
-                    {isOwner && (
-                      <OwnershipTransfer
-                        participants={roomData.participants}
-                        currentOwnerId={roomData.ownerId.toString()}
-                        onTransfer={handleOwnershipTransfer}
-                      />
-                    )}
-                  </SheetTitle>
-                </SheetHeader>
-                <ScrollArea className="h-full mt-4">
-                  <div className="space-y-2">
-                    {roomData.participants.map((participant: any) => (
-                      <div
-                        key={participant.userId}
-                        className="flex items-center gap-3 rounded-md border p-3"
-                        data-testid={`participant-${participant.userId}`}
-                      >
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback className="text-xs">
-                            {participant.username.slice(0, 2).toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-sm font-medium flex-1">
-                          {participant.username}
-                        </span>
-                        {participant.userId === roomData.ownerId.toString() && (
-                          <Badge
-                            variant="secondary"
-                            className="h-6 px-2"
-                            data-testid={`owner-badge-${participant.userId}`}
-                          >
-                            <Crown className="h-3 w-3 text-primary mr-1" />
-                            Owner
-                          </Badge>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
-              </SheetContent>
-            </Sheet>
-
             {/* Room Settings - For Owner */}
             {isOwner && (
               <RoomControls
@@ -380,6 +310,7 @@ export default function Room() {
                 variant="destructive" 
                 size="sm" 
                 onClick={handleLeaveRoom}
+                data-testid="button-leave-room"
               >
                 Leave
               </Button>
@@ -387,6 +318,80 @@ export default function Room() {
           </div>
         </div>
       </div>
+
+      {/* Video Section - Top */}
+      <div className="flex-shrink-0 bg-black">
+        <div className="aspect-video">
+          <RoomVideo 
+            mode={roomData.mode} 
+            videoUrl={roomData.videoUrl}
+            isOwner={isOwner}
+            onVideoSync={handleVideoSync}
+            videoSyncEvent={videoSyncEvent}
+          />
+        </div>
+      </div>
+
+      {/* Content Section - Middle (flexible height based on active tab) */}
+      <div className="flex-1 min-h-0 border-t">
+        {activeTab === "chat" && (
+          <ChatPanel messages={messagesList} onSendMessage={handleSendMessage} />
+        )}
+        
+        {activeTab === "user" && (
+          <div className="h-full flex flex-col">
+            <div className="flex-shrink-0 p-4 border-b">
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold">Participants ({roomData.participants.length})</h3>
+                {isOwner && (
+                  <OwnershipTransfer
+                    participants={roomData.participants}
+                    currentOwnerId={roomData.ownerId.toString()}
+                    onTransfer={handleOwnershipTransfer}
+                  />
+                )}
+              </div>
+            </div>
+            <ScrollArea className="flex-1">
+              <div className="p-4 space-y-3">
+                {roomData.participants.map((participant: any) => (
+                  <div
+                    key={participant.userId}
+                    className="flex items-center gap-3 rounded-md border p-3"
+                    data-testid={`participant-${participant.userId}`}
+                  >
+                    <Avatar className="h-10 w-10">
+                      <AvatarFallback className="text-sm">
+                        {participant.username.slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-sm font-medium flex-1">
+                      {participant.username}
+                    </span>
+                    {participant.userId === roomData.ownerId.toString() && (
+                      <Badge
+                        variant="secondary"
+                        className="h-6 px-2"
+                        data-testid={`owner-badge-${participant.userId}`}
+                      >
+                        <Crown className="h-3 w-3 text-primary mr-1" />
+                        Owner
+                      </Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom Navigation */}
+      <BottomNav 
+        activeTab={activeTab} 
+        onTabChange={setActiveTab}
+        participantCount={roomData.participants.length}
+      />
     </div>
   );
 }
