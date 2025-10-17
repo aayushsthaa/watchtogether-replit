@@ -34,6 +34,15 @@ export const participantSchema = z.object({
   joinedAt: z.date().or(z.string()),
 });
 
+export const playlistEntrySchema = z.object({
+  id: z.string(),
+  url: z.string(),
+  title: z.string().optional(),
+  addedBy: z.string(),
+  addedByUsername: z.string(),
+  addedAt: z.date().or(z.string()),
+});
+
 export const roomSchema = z.object({
   _id: z.string(),
   name: z.string(),
@@ -41,6 +50,8 @@ export const roomSchema = z.object({
   ownerUsername: z.string(),
   mode: roomModeSchema,
   videoUrl: z.string().optional(),
+  playlist: z.array(playlistEntrySchema).default([]),
+  currentIndex: z.number().default(0),
   participants: z.array(participantSchema),
   isActive: z.boolean(),
   createdAt: z.date().or(z.string()),
@@ -59,11 +70,18 @@ export const updateRoomSchema = z.object({
   ownerId: z.string().optional(),
 });
 
+export const insertPlaylistEntrySchema = z.object({
+  url: z.string().url("Must be a valid URL"),
+  title: z.string().optional(),
+});
+
 export type Room = z.infer<typeof roomSchema>;
 export type InsertRoom = z.infer<typeof insertRoomSchema>;
 export type UpdateRoom = z.infer<typeof updateRoomSchema>;
 export type RoomMode = z.infer<typeof roomModeSchema>;
 export type Participant = z.infer<typeof participantSchema>;
+export type PlaylistEntry = z.infer<typeof playlistEntrySchema>;
+export type InsertPlaylistEntry = z.infer<typeof insertPlaylistEntrySchema>;
 
 // Message Schema
 export const messageSchema = z.object({
@@ -97,6 +115,7 @@ export const wsEventSchema = z.object({
     "video_sync",
     "ownership_transferred",
     "room_updated",
+    "playlist_updated",
   ]),
   data: z.any(),
   roomId: z.string().optional(),

@@ -6,14 +6,14 @@ export function useScreenShare() {
   const streamRef = useRef<MediaStream | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
-  const startScreenShare = useCallback(async () => {
+  const startScreenShare = useCallback(async (shareAudio: boolean = false) => {
     try {
       setError(null);
       
       // Request screen sharing with the browser's native picker
       const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: false,
+        video: { cursor: 'always' },
+        audio: shareAudio,
       });
 
       streamRef.current = stream;
@@ -33,6 +33,8 @@ export function useScreenShare() {
     } catch (err: any) {
       const errorMessage = err.name === 'NotAllowedError' 
         ? 'Screen sharing permission denied'
+        : err.name === 'NotSupportedError'
+        ? 'Audio sharing is not supported in your browser'
         : 'Failed to start screen sharing';
       setError(errorMessage);
       setIsSharing(false);

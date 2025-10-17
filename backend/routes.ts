@@ -569,6 +569,164 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
+  // ==================== PLAYLIST ROUTES ====================
+
+  // POST /api/rooms/:id/playlist - Add video to playlist (owner only)
+  app.post(
+    '/api/rooms/:id/playlist',
+    authenticateToken,
+    [
+      param('id').isMongoId().withMessage('Invalid room ID'),
+      body('url').notEmpty().custom((value) => {
+        if (!value || value === '') return false;
+        return /^https?:\/\/.+/.test(value);
+      }).withMessage('Valid URL is required'),
+      body('title').optional().isString(),
+    ],
+    validateRequest,
+    async (req: AuthRequest, res) => {
+      try {
+        const room = await Room.findById(req.params.id);
+        if (!room) {
+          return res.status(404).json({ message: 'Room not found' });
+        }
+
+        if (room.ownerId.toString() !== req.user?._id) {
+          return res.status(403).json({ message: 'Only the room owner can manage the playlist' });
+        }
+
+        const newEntry = {
+          id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+          url: req.body.url,
+          title: req.body.title || 'Untitled',
+          addedBy: req.user?._id!,
+          addedByUsername: req.user?.username!,
+          addedAt: new Date(),
+        };
+
+        room.playlist.push(newEntry);
+        await room.save();
+
+        res.status(201).json(room);
+      } catch (error) {
+        console.error('Add to playlist error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+      }
+    }
+  );
+
+  // DELETE /api/rooms/:id/playlist/:entryId - Remove video from playlist (owner only)
+  app.delete(
+    '/api/rooms/:id/playlist/:entryId',
+    authenticateToken,
+    [
+      param('id').isMongoId().withMessage('Invalid room ID'),
+      param('entryId').notEmpty().withMessage('Entry ID is required'),
+    ],
+    validateRequest,
+    async (req: AuthRequest, res) => {
+      try {
+        const room = await Room.findById(req.params.id);
+        if (!room) {
+          return res.status(404).json({ message: 'Room not found' });
+        }
+
+        if (room.ownerId.toString() !== req.user?._id) {
+          return res.status(403).json({ message: 'Only the room owner can manage the playlist' });
+        }
+
+        const entryIndex = room.playlist.findIndex(e => e.id === req.params.entryId);
+        if (entryIndex === -1) {
+          return res.status(404).json({ message: 'Playlist entry not found' });
+        }
+
+        // If removing the currently playing video, adjust currentIndex
+        if (entryIndex === room.currentIndex && room.playlist.length > 1) {
+          // Keep currentIndex the same to play next video, but cap it
+          room.currentIndex = Math.min(room.currentIndex, room.playlist.length - 2);
+        } else if (entryIndex < room.currentIndex) {
+          // Adjust index if removing earlier video
+          room.currentIndex = Math.max(0, room.currentIndex - 1);
+        }
+
+        room.playlist.splice(entryIndex, 1);
+        await room.save();
+
+        res.json(room);
+      } catch (error) {
+        console.error('Remove from playlist error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+      }
+    }
+  );
+
+  // PATCH /api/rooms/:id/playlist/next - Skip to next video (owner only)
+  app.patch(
+    '/api/rooms/:id/playlist/next',
+    authenticateToken,
+    [param('id').isMongoId().withMessage('Invalid room ID')],
+    validateRequest,
+    async (req: AuthRequest, res) => {
+      try {
+        const room = await Room.findById(req.params.id);
+        if (!room) {
+          return res.status(404).json({ message: 'Room not found' });
+        }
+
+        if (room.ownerId.toString() !== req.user?._id) {
+          return res.status(403).json({ message: 'Only the room owner can control playback' });
+        }
+
+        if (room.playlist.length === 0) {
+          return res.status(400).json({ message: 'Playlist is empty' });
+        }
+
+        room.currentIndex = (room.currentIndex + 1) % room.playlist.length;
+        await room.save();
+
+        res.json(room);
+      } catch (error) {
+        console.error('Skip to next error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+      }
+    }
+  );
+
+  // PATCH /api/rooms/:id/playlist/previous - Go to previous video (owner only)
+  app.patch(
+    '/api/rooms/:id/playlist/previous',
+    authenticateToken,
+    [param('id').isMongoId().withMessage('Invalid room ID')],
+    validateRequest,
+    async (req: AuthRequest, res) => {
+      try {
+        const room = await Room.findById(req.params.id);
+        if (!room) {
+          return res.status(404).json({ message: 'Room not found' });
+        }
+
+        if (room.ownerId.toString() !== req.user?._id) {
+          return res.status(403).json({ message: 'Only the room owner can control playback' });
+        }
+
+        if (room.playlist.length === 0) {
+          return res.status(400).json({ message: 'Playlist is empty' });
+        }
+
+        room.currentIndex = room.currentIndex - 1;
+        if (room.currentIndex < 0) {
+          room.currentIndex = room.playlist.length - 1;
+        }
+        await room.save();
+
+        res.json(room);
+      } catch (error) {
+        console.error('Go to previous error:', error);
+        res.status(500).json({ message: 'Internal server error' });
+      }
+    }
+  );
+
   // ==================== MESSAGE ROUTES ====================
   // Messages are now stored in memory only (not persisted to MongoDB)
   const roomMessages = new Map<string, any[]>();

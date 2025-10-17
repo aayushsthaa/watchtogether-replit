@@ -6,12 +6,23 @@ export interface IParticipant {
   joinedAt: Date;
 }
 
+export interface IPlaylistEntry {
+  id: string;
+  url: string;
+  title?: string;
+  addedBy: string;
+  addedByUsername: string;
+  addedAt: Date;
+}
+
 export interface IRoom extends Document {
   name: string;
   ownerId: mongoose.Types.ObjectId;
   ownerUsername: string;
   mode: 'screenshare' | 'watchparty';
   videoUrl?: string;
+  playlist: IPlaylistEntry[];
+  currentIndex: number;
   participants: IParticipant[];
   isActive: boolean;
   createdAt: Date;
@@ -28,6 +39,32 @@ const ParticipantSchema = new Schema({
     required: true,
   },
   joinedAt: {
+    type: Date,
+    default: Date.now,
+  },
+}, { _id: false });
+
+const PlaylistEntrySchema = new Schema({
+  id: {
+    type: String,
+    required: true,
+  },
+  url: {
+    type: String,
+    required: true,
+  },
+  title: {
+    type: String,
+  },
+  addedBy: {
+    type: String,
+    required: true,
+  },
+  addedByUsername: {
+    type: String,
+    required: true,
+  },
+  addedAt: {
     type: Date,
     default: Date.now,
   },
@@ -57,6 +94,14 @@ const RoomSchema = new Schema<IRoom>({
   videoUrl: {
     type: String,
     default: '',
+  },
+  playlist: {
+    type: [PlaylistEntrySchema],
+    default: [],
+  },
+  currentIndex: {
+    type: Number,
+    default: 0,
   },
   participants: [ParticipantSchema],
   isActive: {

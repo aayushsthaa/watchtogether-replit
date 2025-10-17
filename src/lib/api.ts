@@ -111,6 +111,33 @@ export const api = {
         method: 'DELETE',
         credentials: 'include',
       }).then(handleResponse),
+
+    // Playlist endpoints
+    addToPlaylist: (roomId: string, data: { url: string; title?: string }) =>
+      fetch(`${API_BASE}/rooms/${roomId}/playlist`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      }).then(handleResponse),
+
+    removeFromPlaylist: (roomId: string, entryId: string) =>
+      fetch(`${API_BASE}/rooms/${roomId}/playlist/${entryId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      }).then(handleResponse),
+
+    nextVideo: (roomId: string) =>
+      fetch(`${API_BASE}/rooms/${roomId}/playlist/next`, {
+        method: 'PATCH',
+        credentials: 'include',
+      }).then(handleResponse),
+
+    previousVideo: (roomId: string) =>
+      fetch(`${API_BASE}/rooms/${roomId}/playlist/previous`, {
+        method: 'PATCH',
+        credentials: 'include',
+      }).then(handleResponse),
   },
 
   messages: {

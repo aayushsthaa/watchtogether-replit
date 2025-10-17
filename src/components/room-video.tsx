@@ -1,9 +1,19 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { MonitorPlay, Tv, MonitorUp, MonitorOff } from "lucide-react";
 import type { RoomMode, VideoSync } from "@/lib/schema";
 import { useYouTubePlayer } from "@/hooks/useYouTubePlayer";
 import { useScreenShare } from "@/hooks/useScreenShare";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface RoomVideoProps {
   mode: RoomMode;
@@ -14,6 +24,9 @@ interface RoomVideoProps {
 }
 
 export function RoomVideo({ mode, videoUrl, isOwner, onVideoSync, videoSyncEvent }: RoomVideoProps) {
+  const [shareAudioDialogOpen, setShareAudioDialogOpen] = useState(false);
+  const [shareAudio, setShareAudio] = useState(false);
+
   // Extract YouTube video ID from URL
   const getYouTubeId = (url: string) => {
     const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&]+)/);
@@ -37,6 +50,16 @@ export function RoomVideo({ mode, videoUrl, isOwner, onVideoSync, videoSyncEvent
   });
 
   const { isSharing, error, startScreenShare, stopScreenShare, attachVideoElement } = useScreenShare();
+
+  const handleStartScreenShare = () => {
+    setShareAudioDialogOpen(true);
+  };
+
+  const confirmStartScreenShare = async () => {
+    await startScreenShare(shareAudio);
+    setShareAudioDialogOpen(false);
+    setShareAudio(false);
+  };
 
   // Handle incoming video sync events (for non-owners)
   useEffect(() => {
@@ -73,7 +96,7 @@ export function RoomVideo({ mode, videoUrl, isOwner, onVideoSync, videoSyncEvent
                       Share your screen with the room
                     </p>
                     <Button
-                      onClick={startScreenShare}
+                      onClick={handleStartScreenShare}
                       className="gap-2"
                       data-testid="button-start-screenshare"
                     >
@@ -116,6 +139,43 @@ export function RoomVideo({ mode, videoUrl, isOwner, onVideoSync, videoSyncEvent
           </div>
         )}
       </div>
+
+      <Dialog open={shareAudioDialogOpen} onOpenChange={setShareAudioDialogOpen}>
+        <DialogContent data-testid="dialog-screenshare-options">
+          <DialogHeader>
+            <DialogTitle>Screen Share Options</DialogTitle>
+            <DialogDescription>
+              Configure your screen sharing preferences
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center space-x-2 py-4">
+            <Switch
+              id="share-audio"
+              checked={shareAudio}
+              onCheckedChange={setShareAudio}
+              data-testid="switch-share-audio"
+            />
+            <Label htmlFor="share-audio" className="cursor-pointer">
+              Share system audio (browser tab audio)
+            </Label>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShareAudioDialogOpen(false)}
+              data-testid="button-cancel-screenshare"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmStartScreenShare}
+              data-testid="button-confirm-screenshare"
+            >
+              Start Sharing
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
