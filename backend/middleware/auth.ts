@@ -8,6 +8,7 @@ export interface AuthRequest extends Request {
     _id: string;
     username: string;
     isAdmin: boolean;
+    avatarUrl?: string;
   };
 }
 
@@ -27,6 +28,7 @@ export const authenticateToken = (
       _id: string;
       username: string;
       isAdmin: boolean;
+      avatarUrl?: string;
     };
 
     req.user = decoded;

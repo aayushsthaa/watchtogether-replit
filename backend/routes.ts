@@ -44,6 +44,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             _id: user._id.toString(),
             username: user.username,
             isAdmin: user.isAdmin,
+            avatarUrl: user.avatarUrl || '',
           },
           JWT_SECRET,
           { expiresIn: '7d' }
@@ -473,6 +474,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           room.participants.push({
             userId: req.user?._id!,
             username: req.user?.username!,
+            avatarUrl: req.user?.avatarUrl || '',
             joinedAt: new Date(),
           });
           await room.save();
@@ -788,6 +790,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           roomId: req.params.id,
           userId: req.user?._id,
           username: req.user?.username,
+          avatarUrl: req.user?.avatarUrl || '',
           content,
           type: type || 'text',
           gifUrl,

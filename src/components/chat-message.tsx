@@ -1,4 +1,4 @@
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { Message } from "@/lib/schema";
 
 interface ChatMessageProps {
@@ -17,6 +17,7 @@ export function ChatMessage({ message }: ChatMessageProps) {
       data-testid={`message-${message._id}`}
     >
       <Avatar className="h-8 w-8 shrink-0">
+        {message.avatarUrl && <AvatarImage src={message.avatarUrl} alt={message.username} />}
         <AvatarFallback className="text-xs">
           {message.username.slice(0, 2).toUpperCase()}
         </AvatarFallback>

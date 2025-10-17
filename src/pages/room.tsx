@@ -11,7 +11,7 @@ import { OwnershipTransfer } from "@/components/ownership-transfer";
 import { ChatPanel } from "@/components/chat-panel";
 import { PlaylistManager } from "@/components/playlist-manager";
 import { BottomNav, type BottomNavTab } from "@/components/bottom-nav";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -205,6 +205,7 @@ export default function Room() {
                           data-testid={`participant-${participant.userId}`}
                         >
                           <Avatar className="h-8 w-8">
+                            {participant.avatarUrl && <AvatarImage src={participant.avatarUrl} alt={participant.username} />}
                             <AvatarFallback className="text-xs">
                               {participant.username.slice(0, 2).toUpperCase()}
                             </AvatarFallback>
@@ -381,6 +382,7 @@ export default function Room() {
                     data-testid={`participant-${participant.userId}`}
                   >
                     <Avatar className="h-10 w-10">
+                      {participant.avatarUrl && <AvatarImage src={participant.avatarUrl} alt={participant.username} />}
                       <AvatarFallback className="text-sm">
                         {participant.username.slice(0, 2).toUpperCase()}
                       </AvatarFallback>

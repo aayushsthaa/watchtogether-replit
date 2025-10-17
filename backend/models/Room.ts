@@ -3,6 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IParticipant {
   userId: string;
   username: string;
+  avatarUrl?: string;
   joinedAt: Date;
 }
 
@@ -37,6 +38,9 @@ const ParticipantSchema = new Schema({
   username: {
     type: String,
     required: true,
+  },
+  avatarUrl: {
+    type: String,
   },
   joinedAt: {
     type: Date,

@@ -31,6 +31,7 @@ export const roomModeSchema = z.enum(["screenshare", "watchparty"]);
 export const participantSchema = z.object({
   userId: z.string(),
   username: z.string(),
+  avatarUrl: z.string().optional(),
   joinedAt: z.date().or(z.string()),
 });
 
@@ -89,6 +90,7 @@ export const messageSchema = z.object({
   roomId: z.string(),
   userId: z.string(),
   username: z.string(),
+  avatarUrl: z.string().optional(),
   content: z.string(),
   type: z.enum(["text", "gif", "system"]),
   gifUrl: z.string().optional(),

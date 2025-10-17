@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/contexts/AuthContext";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
@@ -207,6 +207,7 @@ export function BottomNav({
             {user && (
               <div className="flex items-center gap-3 p-4 rounded-md bg-muted/50">
                 <Avatar className="h-12 w-12">
+                  {user.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user.username} />}
                   <AvatarFallback className="text-lg">
                     {user.username.slice(0, 2).toUpperCase()}
                   </AvatarFallback>
