@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface WebSocketMessage {
-  type: 'message' | 'user_joined' | 'user_left' | 'mode_changed' | 'ownership_transferred' | 'room_updated' | 'video_sync';
+  type: 'message' | 'user_joined' | 'user_left' | 'mode_changed' | 'ownership_transferred' | 'room_updated' | 'video_sync' | 'playlist_updated';
   data: any;
   roomId?: string;
   userId?: string;
@@ -69,6 +69,7 @@ export function useWebSocket(roomId: string | undefined, options?: UseWebSocketO
             case 'mode_changed':
             case 'ownership_transferred':
             case 'room_updated':
+            case 'playlist_updated':
               queryClient.invalidateQueries({ queryKey: ['rooms', roomId] });
               queryClient.invalidateQueries({ queryKey: ['rooms'] });
               break;
