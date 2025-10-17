@@ -14,7 +14,7 @@ interface AuthenticatedWebSocket extends WebSocket {
 }
 
 interface WSMessage {
-  type: 'message' | 'user_joined' | 'user_left' | 'mode_changed' | 'video_sync' | 'ownership_transferred' | 'room_updated';
+  type: 'message' | 'user_joined' | 'user_left' | 'mode_changed' | 'video_sync' | 'ownership_transferred' | 'room_updated' | 'playlist_updated' | 'join_room' | 'leave_room';
   data: any;
   roomId?: string;
   userId?: string;
@@ -101,13 +101,30 @@ export function setupWebSocket(httpServer: HTTPServer) {
             break;
 
           case 'video_sync':
-            broadcastToRoom(ws.roomId!, {
-              type: 'video_sync',
-              data: message.data,
-              userId: ws.userId,
-              username: ws.username,
-              timestamp: new Date().toISOString(),
-            }, ws);
+            // Security check: Only room owner can send video sync events
+            if (ws.roomId) {
+              Room.findById(ws.roomId).then(room => {
+                if (!room) {
+                  console.error(`Room ${ws.roomId} not found for video_sync`);
+                  return;
+                }
+                
+                // Verify sender is room owner
+                if (room.ownerId.toString() === ws.userId) {
+                  broadcastToRoom(ws.roomId!, {
+                    type: 'video_sync',
+                    data: message.data,
+                    userId: ws.userId,
+                    username: ws.username,
+                    timestamp: new Date().toISOString(),
+                  }, ws);
+                } else {
+                  console.log(`User ${ws.username} attempted video_sync but is not room owner`);
+                }
+              }).catch(error => {
+                console.error('Error verifying room owner for video_sync:', error);
+              });
+            }
             break;
 
           case 'mode_changed':
@@ -133,6 +150,16 @@ export function setupWebSocket(httpServer: HTTPServer) {
           case 'room_updated':
             broadcastToRoom(ws.roomId!, {
               type: 'room_updated',
+              data: message.data,
+              userId: ws.userId,
+              username: ws.username,
+              timestamp: new Date().toISOString(),
+            });
+            break;
+
+          case 'playlist_updated':
+            broadcastToRoom(ws.roomId!, {
+              type: 'playlist_updated',
               data: message.data,
               userId: ws.userId,
               username: ws.username,
@@ -233,5 +260,14 @@ function broadcastToRoom(roomId: string, message: WSMessage, excludeClient?: Aut
     if (client !== excludeClient && client.readyState === WebSocket.OPEN) {
       client.send(messageStr);
     }
+  });
+}
+
+// Export broadcast function for use in routes
+export function broadcastPlaylistUpdate(roomId: string, roomData: any) {
+  broadcastToRoom(roomId, {
+    type: 'playlist_updated',
+    data: roomData,
+    timestamp: new Date().toISOString(),
   });
 }

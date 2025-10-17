@@ -9,6 +9,7 @@ import { RoomVideo } from "@/components/room-video";
 import { RoomControls } from "@/components/room-controls";
 import { OwnershipTransfer } from "@/components/ownership-transfer";
 import { ChatPanel } from "@/components/chat-panel";
+import { PlaylistManager } from "@/components/playlist-manager";
 import { BottomNav, type BottomNavTab } from "@/components/bottom-nav";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -262,6 +263,8 @@ export default function Room() {
               <RoomVideo 
                 mode={roomData.mode} 
                 videoUrl={roomData.videoUrl}
+                playlist={roomData.playlist}
+                currentIndex={roomData.currentIndex}
                 isOwner={isOwner}
                 onVideoSync={handleVideoSync}
                 videoSyncEvent={videoSyncEvent}
@@ -269,9 +272,20 @@ export default function Room() {
             </div>
           </div>
 
-          {/* Chat Sidebar */}
-          <div className="w-96 flex-shrink-0">
-            <ChatPanel messages={messagesList} onSendMessage={handleSendMessage} />
+          {/* Right Sidebar - Chat and Playlist */}
+          <div className="w-96 flex-shrink-0 flex flex-col">
+            {roomData.mode === "watchparty" ? (
+              <>
+                <div className="flex-1 min-h-0">
+                  <PlaylistManager room={roomData} isOwner={isOwner} />
+                </div>
+                <div className="h-64 border-t">
+                  <ChatPanel messages={messagesList} onSendMessage={handleSendMessage} />
+                </div>
+              </>
+            ) : (
+              <ChatPanel messages={messagesList} onSendMessage={handleSendMessage} />
+            )}
           </div>
         </div>
       </div>
@@ -325,6 +339,8 @@ export default function Room() {
           <RoomVideo 
             mode={roomData.mode} 
             videoUrl={roomData.videoUrl}
+            playlist={roomData.playlist}
+            currentIndex={roomData.currentIndex}
             isOwner={isOwner}
             onVideoSync={handleVideoSync}
             videoSyncEvent={videoSyncEvent}
@@ -336,6 +352,10 @@ export default function Room() {
       <div className="flex-1 min-h-0 border-t">
         {activeTab === "chat" && (
           <ChatPanel messages={messagesList} onSendMessage={handleSendMessage} />
+        )}
+
+        {activeTab === "playlist" && (
+          <PlaylistManager room={roomData} isOwner={isOwner} />
         )}
         
         {activeTab === "participants" && (

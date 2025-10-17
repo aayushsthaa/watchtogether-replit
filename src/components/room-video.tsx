@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { MonitorPlay, Tv, MonitorUp, MonitorOff } from "lucide-react";
-import type { RoomMode, VideoSync } from "@/lib/schema";
+import type { RoomMode, VideoSync, PlaylistEntry } from "@/lib/schema";
 import { useYouTubePlayer } from "@/hooks/useYouTubePlayer";
 import { useScreenShare } from "@/hooks/useScreenShare";
 import { Button } from "@/components/ui/button";
@@ -18,12 +18,14 @@ import {
 interface RoomVideoProps {
   mode: RoomMode;
   videoUrl?: string;
+  playlist?: PlaylistEntry[];
+  currentIndex?: number;
   isOwner: boolean;
   onVideoSync?: (syncData: VideoSync) => void;
   videoSyncEvent?: VideoSync | null;
 }
 
-export function RoomVideo({ mode, videoUrl, isOwner, onVideoSync, videoSyncEvent }: RoomVideoProps) {
+export function RoomVideo({ mode, videoUrl, playlist = [], currentIndex = 0, isOwner, onVideoSync, videoSyncEvent }: RoomVideoProps) {
   const [shareAudioDialogOpen, setShareAudioDialogOpen] = useState(false);
   const [shareAudio, setShareAudio] = useState(false);
 
@@ -33,17 +35,23 @@ export function RoomVideo({ mode, videoUrl, isOwner, onVideoSync, videoSyncEvent
     return match ? match[1] : null;
   };
 
-  const youtubeId = videoUrl ? getYouTubeId(videoUrl) : null;
+  // Get current video from playlist or fallback to videoUrl prop
+  const currentVideoUrl = playlist.length > 0 && playlist[currentIndex] 
+    ? playlist[currentIndex].url 
+    : videoUrl;
 
-  const { playerContainerRef, isReady, syncVideo } = useYouTubePlayer({
+  const youtubeId = currentVideoUrl ? getYouTubeId(currentVideoUrl) : null;
+
+  const { playerId, isReady, syncVideo } = useYouTubePlayer({
     videoId: youtubeId,
     isOwner,
     onStateChange: (action, currentTime) => {
       if (isOwner && onVideoSync) {
+        console.log('Sending sync event:', action, 'at', currentTime);
         onVideoSync({
           action,
           currentTime,
-          videoUrl,
+          videoUrl: currentVideoUrl,
         });
       }
     },
@@ -64,6 +72,7 @@ export function RoomVideo({ mode, videoUrl, isOwner, onVideoSync, videoSyncEvent
   // Handle incoming video sync events (for non-owners)
   useEffect(() => {
     if (!isOwner && videoSyncEvent && isReady) {
+      console.log('Received sync event:', videoSyncEvent.action, 'at', videoSyncEvent.currentTime);
       syncVideo(videoSyncEvent.action, videoSyncEvent.currentTime);
     }
   }, [isOwner, videoSyncEvent, isReady, syncVideo]);
@@ -73,8 +82,8 @@ export function RoomVideo({ mode, videoUrl, isOwner, onVideoSync, videoSyncEvent
       <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
         {mode === "watchparty" && youtubeId ? (
           <div 
-            ref={playerContainerRef} 
-            className="absolute inset-0 w-full h-full"
+            id={playerId}
+            className={`absolute inset-0 w-full h-full ${!isOwner ? 'pointer-events-none' : ''}`}
             data-testid="youtube-player"
           />
         ) : mode === "screenshare" ? (
@@ -133,9 +142,15 @@ export function RoomVideo({ mode, videoUrl, isOwner, onVideoSync, videoSyncEvent
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-muted-foreground">
             <Tv className="h-16 w-16" />
-            <p className="text-lg" data-testid="text-video-waiting">
-              No video playing
-            </p>
+            {isOwner ? (
+              <p className="text-lg" data-testid="text-video-waiting">
+                No videos in playlist. Add a video to get started.
+              </p>
+            ) : (
+              <p className="text-lg" data-testid="text-video-waiting">
+                Waiting for owner to add videos...
+              </p>
+            )}
           </div>
         )}
       </div>

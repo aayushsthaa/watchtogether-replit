@@ -6,6 +6,7 @@ import { body, param } from "express-validator";
 import { User } from "./models/User";
 import { Room } from "./models/Room";
 import { authenticateToken, AuthRequest } from "./middleware/auth";
+import { broadcastPlaylistUpdate } from "./websocket";
 import { requireAdmin } from "./middleware/admin";
 import { validateRequest } from "./middleware/validateRequest";
 
@@ -423,6 +424,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(403).json({ message: 'Only the room owner can update the room' });
         }
 
+        // Prevent direct videoUrl updates when playlist is active
+        if (req.body.videoUrl !== undefined && room.playlist && room.playlist.length > 0) {
+          return res.status(400).json({ 
+            message: 'Cannot update video URL when playlist is active. Please manage videos through the playlist.' 
+          });
+        }
+
         const updates: any = {};
         if (req.body.name) updates.name = req.body.name;
         if (req.body.mode) updates.mode = req.body.mode;
@@ -607,6 +615,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         room.playlist.push(newEntry);
         await room.save();
 
+        // Broadcast playlist update to all room participants
+        broadcastPlaylistUpdate(room._id.toString(), room);
+
         res.status(201).json(room);
       } catch (error) {
         console.error('Add to playlist error:', error);
@@ -652,6 +663,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         room.playlist.splice(entryIndex, 1);
         await room.save();
 
+        // Broadcast playlist update to all room participants
+        broadcastPlaylistUpdate(room._id.toString(), room);
+
         res.json(room);
       } catch (error) {
         console.error('Remove from playlist error:', error);
@@ -683,6 +697,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
         room.currentIndex = (room.currentIndex + 1) % room.playlist.length;
         await room.save();
+
+        // Broadcast playlist update to all room participants
+        broadcastPlaylistUpdate(room._id.toString(), room);
 
         res.json(room);
       } catch (error) {
@@ -718,6 +735,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           room.currentIndex = room.playlist.length - 1;
         }
         await room.save();
+
+        // Broadcast playlist update to all room participants
+        broadcastPlaylistUpdate(room._id.toString(), room);
 
         res.json(room);
       } catch (error) {

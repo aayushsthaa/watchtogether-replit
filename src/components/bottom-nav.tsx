@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MessageCircle, Users, Settings } from "lucide-react";
+import { MessageCircle, Users, Settings, ListVideo } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -14,7 +14,7 @@ import { useLocation } from "wouter";
 import type { RoomMode } from "@/lib/schema";
 import { MonitorPlay, Video, LogOut } from "lucide-react";
 
-export type BottomNavTab = "chat" | "participants" | "settings";
+export type BottomNavTab = "chat" | "participants" | "settings" | "playlist";
 
 interface BottomNavProps {
   activeTab: BottomNavTab;
@@ -79,6 +79,23 @@ export function BottomNav({
             <MessageCircle className="h-5 w-5" />
             <span className="text-xs font-medium">Chat</span>
           </button>
+
+          {/* Playlist Tab - Only for Watch Party mode */}
+          {roomMode === "watchparty" && (
+            <button
+              onClick={() => handleTabClick("playlist")}
+              className={cn(
+                "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors",
+                activeTab === "playlist" 
+                  ? "text-primary" 
+                  : "text-muted-foreground hover-elevate"
+              )}
+              data-testid="tab-playlist"
+            >
+              <ListVideo className="h-5 w-5" />
+              <span className="text-xs font-medium">Playlist</span>
+            </button>
+          )}
 
           {/* Participants Tab */}
           <button

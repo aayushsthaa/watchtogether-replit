@@ -15,11 +15,11 @@ interface UseYouTubePlayerOptions {
 
 export function useYouTubePlayer({ videoId, isOwner, onStateChange }: UseYouTubePlayerOptions) {
   const playerRef = useRef<any>(null);
-  const playerContainerRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
   const [isAPIReady, setIsAPIReady] = useState(false);
   const lastActionRef = useRef<{ action: string; time: number } | null>(null);
   const isSyncingRef = useRef(false);
+  const playerIdRef = useRef(`youtube-player-${Math.random().toString(36).substr(2, 9)}`);
 
   // Load YouTube IFrame API
   useEffect(() => {
@@ -40,7 +40,15 @@ export function useYouTubePlayer({ videoId, isOwner, onStateChange }: UseYouTube
 
   // Initialize player when API is ready
   useEffect(() => {
-    if (!isAPIReady || !videoId || !playerContainerRef.current) {
+    if (!isAPIReady || !videoId) {
+      return;
+    }
+
+    const playerId = playerIdRef.current;
+    const containerElement = document.getElementById(playerId);
+    
+    if (!containerElement) {
+      console.error('YouTube player container not found:', playerId);
       return;
     }
 
@@ -50,8 +58,10 @@ export function useYouTubePlayer({ videoId, isOwner, onStateChange }: UseYouTube
       playerRef.current = null;
     }
 
-    // Create new player
-    playerRef.current = new window.YT.Player(playerContainerRef.current, {
+    // Create new player with element ID string
+    playerRef.current = new window.YT.Player(playerId, {
+      height: '100%',
+      width: '100%',
       videoId,
       playerVars: {
         autoplay: 0,
@@ -61,9 +71,13 @@ export function useYouTubePlayer({ videoId, isOwner, onStateChange }: UseYouTube
         rel: 0,
         fs: 1,
         enablejsapi: 1,
+        origin: window.location.origin,
+        playsinline: 1,
+        widget_referrer: window.location.href,
       },
       events: {
         onReady: () => {
+          console.log('YouTube player ready, isOwner:', isOwner);
           setIsReady(true);
         },
         onStateChange: (event: any) => {
@@ -81,6 +95,7 @@ export function useYouTubePlayer({ videoId, isOwner, onStateChange }: UseYouTube
             // Only send play event if it's a new play or significant time difference
             if (!lastAction || lastAction.action !== 'play' || timeDiff > 1) {
               lastActionRef.current = { action: 'play', time: currentTime };
+              console.log('Owner playing video at', currentTime);
               onStateChange?.('play', currentTime);
             }
           } else if (event.data === window.YT.PlayerState.PAUSED) {
@@ -89,6 +104,7 @@ export function useYouTubePlayer({ videoId, isOwner, onStateChange }: UseYouTube
             // Only send pause event if last action wasn't pause
             if (!lastAction || lastAction.action !== 'pause') {
               lastActionRef.current = { action: 'pause', time: currentTime };
+              console.log('Owner paused video at', currentTime);
               onStateChange?.('pause', currentTime);
             }
           }
@@ -109,6 +125,7 @@ export function useYouTubePlayer({ videoId, isOwner, onStateChange }: UseYouTube
       return;
     }
 
+    console.log('Syncing video:', action, 'at', currentTime);
     isSyncingRef.current = true;
 
     try {
@@ -156,7 +173,7 @@ export function useYouTubePlayer({ videoId, isOwner, onStateChange }: UseYouTube
   }, [isReady, isOwner, onStateChange]);
 
   return {
-    playerContainerRef,
+    playerId: playerIdRef.current,
     isReady,
     syncVideo,
     play,
