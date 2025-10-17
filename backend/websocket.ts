@@ -2,6 +2,7 @@ import { Server as HTTPServer } from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
 import jwt from 'jsonwebtoken';
 import url from 'url';
+import { Room } from './models/Room';
 
 const JWT_SECRET = process.env.SESSION_SECRET || 'your-secret-key';
 
@@ -188,7 +189,7 @@ function handleJoinRoom(ws: AuthenticatedWebSocket, roomId: string) {
   }, ws);
 }
 
-function handleLeaveRoom(ws: AuthenticatedWebSocket, roomId: string) {
+async function handleLeaveRoom(ws: AuthenticatedWebSocket, roomId: string) {
   const roomClients = roomConnections.get(roomId);
   if (roomClients) {
     roomClients.delete(ws);
@@ -198,6 +199,16 @@ function handleLeaveRoom(ws: AuthenticatedWebSocket, roomId: string) {
   }
 
   console.log(`${ws.username} left room ${roomId}`);
+
+  // Update database to remove participant
+  try {
+    await Room.findByIdAndUpdate(
+      roomId,
+      { $pull: { participants: { userId: ws.userId } } }
+    );
+  } catch (error) {
+    console.error('Error removing participant from database:', error);
+  }
 
   // Notify others in the room
   broadcastToRoom(roomId, {

@@ -338,7 +338,7 @@ export default function Room() {
           <ChatPanel messages={messagesList} onSendMessage={handleSendMessage} />
         )}
         
-        {activeTab === "user" && (
+        {activeTab === "participants" && (
           <div className="h-full flex flex-col">
             <div className="flex-shrink-0 p-4 border-b">
               <div className="flex items-center justify-between">
@@ -391,6 +391,11 @@ export default function Room() {
         activeTab={activeTab} 
         onTabChange={setActiveTab}
         participantCount={roomData.participants.length}
+        roomName={roomData.name}
+        roomMode={roomData.mode}
+        isOwner={isOwner}
+        onModeChange={handleModeChange}
+        onLeaveRoom={handleLeaveRoom}
       />
     </div>
   );

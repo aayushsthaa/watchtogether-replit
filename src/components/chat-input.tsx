@@ -58,11 +58,18 @@ export function ChatInput({ onSendMessage, isMobile = false }: ChatInputProps) {
                 <Smile className={isMobile ? "h-4 w-4" : "h-5 w-5"} />
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-full p-0 border-none" align="end" side="top">
+            <PopoverContent 
+              className="w-auto p-0 border-none z-[100]" 
+              align={isMobile ? "center" : "end"} 
+              side="top"
+              sideOffset={8}
+              avoidCollisions={true}
+            >
               <EmojiPicker
                 onEmojiClick={handleEmojiClick}
-                width={isMobile ? 280 : 350}
+                width={isMobile ? 300 : 350}
                 height={isMobile ? 350 : 400}
+                previewConfig={{ showPreview: false }}
               />
             </PopoverContent>
           </Popover>

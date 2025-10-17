@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { MessageCircle, User, Settings } from "lucide-react";
+import { MessageCircle, Users, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -7,18 +7,38 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import { useAuth } from "@/contexts/AuthContext";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useLocation } from "wouter";
+import type { RoomMode } from "@/lib/schema";
+import { MonitorPlay, Video, LogOut } from "lucide-react";
 
-export type BottomNavTab = "chat" | "user" | "settings";
+export type BottomNavTab = "chat" | "participants" | "settings";
 
 interface BottomNavProps {
   activeTab: BottomNavTab;
   onTabChange: (tab: BottomNavTab) => void;
   participantCount?: number;
+  roomName?: string;
+  roomMode?: RoomMode;
+  isOwner?: boolean;
+  onModeChange?: (mode: RoomMode) => void;
+  onLeaveRoom?: () => void;
 }
 
-export function BottomNav({ activeTab, onTabChange, participantCount = 0 }: BottomNavProps) {
+export function BottomNav({ 
+  activeTab, 
+  onTabChange, 
+  participantCount = 0,
+  roomName,
+  roomMode,
+  isOwner = false,
+  onModeChange,
+  onLeaveRoom,
+}: BottomNavProps) {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [selectedMode, setSelectedMode] = useState<RoomMode>(roomMode || "watchparty");
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
 
@@ -33,6 +53,11 @@ export function BottomNav({ activeTab, onTabChange, participantCount = 0 }: Bott
   const handleLogout = async () => {
     await logout();
     setLocation("/login");
+  };
+
+  const handleModeChange = (newMode: RoomMode) => {
+    setSelectedMode(newMode);
+    onModeChange?.(newMode);
   };
 
   return (
@@ -55,19 +80,19 @@ export function BottomNav({ activeTab, onTabChange, participantCount = 0 }: Bott
             <span className="text-xs font-medium">Chat</span>
           </button>
 
-          {/* User/Profile Tab */}
+          {/* Participants Tab */}
           <button
-            onClick={() => handleTabClick("user")}
+            onClick={() => handleTabClick("participants")}
             className={cn(
               "flex flex-col items-center justify-center flex-1 h-full gap-1 transition-colors",
-              activeTab === "user" 
+              activeTab === "participants" 
                 ? "text-primary" 
                 : "text-muted-foreground hover-elevate"
             )}
-            data-testid="tab-user"
+            data-testid="tab-participants"
           >
-            <User className="h-5 w-5" />
-            <span className="text-xs font-medium">Users</span>
+            <Users className="h-5 w-5" />
+            <span className="text-xs font-medium">Participants</span>
           </button>
 
           {/* Settings Tab */}
@@ -90,6 +115,77 @@ export function BottomNav({ activeTab, onTabChange, participantCount = 0 }: Bott
           </SheetHeader>
           
           <div className="mt-6 space-y-6">
+            {/* Room Info Section (only show if roomName is provided) */}
+            {roomName && (
+              <>
+                <div className="space-y-3">
+                  <h3 className="font-semibold text-sm text-muted-foreground">Room Information</h3>
+                  <div className="flex items-center justify-between p-3 rounded-md bg-muted/50">
+                    <div>
+                      <p className="font-medium">{roomName}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="secondary" className="text-xs">
+                          {roomMode === "screenshare" ? "Screen Share" : "Watch Party"}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">
+                          {participantCount} {participantCount === 1 ? 'participant' : 'participants'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Room Mode Settings (Owner Only) */}
+                  {isOwner && onModeChange && (
+                    <div className="space-y-3 p-3 rounded-md border">
+                      <h4 className="font-medium text-sm">Room Mode</h4>
+                      <RadioGroup
+                        value={selectedMode}
+                        onValueChange={(value) => handleModeChange(value as RoomMode)}
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem
+                            value="watchparty"
+                            id="mobile-mode-watchparty"
+                          />
+                          <Label htmlFor="mobile-mode-watchparty" className="flex items-center gap-2 cursor-pointer">
+                            <Video className="h-4 w-4" />
+                            Watch Party
+                          </Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem
+                            value="screenshare"
+                            id="mobile-mode-screenshare"
+                          />
+                          <Label htmlFor="mobile-mode-screenshare" className="flex items-center gap-2 cursor-pointer">
+                            <MonitorPlay className="h-4 w-4" />
+                            Screen Share
+                          </Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+                  )}
+
+                  {/* Leave Room Button */}
+                  {onLeaveRoom && (
+                    <Button
+                      variant="destructive"
+                      className="w-full gap-2"
+                      onClick={() => {
+                        setSettingsOpen(false);
+                        onLeaveRoom();
+                      }}
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Leave Room
+                    </Button>
+                  )}
+                </div>
+
+                <Separator />
+              </>
+            )}
+
             {/* User Profile Section */}
             {user && (
               <div className="flex items-center gap-3 p-4 rounded-md bg-muted/50">

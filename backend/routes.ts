@@ -5,7 +5,6 @@ import jwt from "jsonwebtoken";
 import { body, param } from "express-validator";
 import { User } from "./models/User";
 import { Room } from "./models/Room";
-import { Message } from "./models/Message";
 import { authenticateToken, AuthRequest } from "./middleware/auth";
 import { requireAdmin } from "./middleware/admin";
 import { validateRequest } from "./middleware/validateRequest";
@@ -568,8 +567,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   );
 
   // ==================== MESSAGE ROUTES ====================
+  // Messages are now stored in memory only (not persisted to MongoDB)
+  const roomMessages = new Map<string, any[]>();
 
-  // GET /api/rooms/:id/messages - Get chat history
+  // GET /api/rooms/:id/messages - Get chat history (from memory)
   app.get(
     '/api/rooms/:id/messages',
     authenticateToken,
@@ -577,10 +578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     validateRequest,
     async (req: AuthRequest, res) => {
       try {
-        const messages = await Message.find({ roomId: req.params.id })
-          .sort({ createdAt: 1 })
-          .limit(100);
-
+        const messages = roomMessages.get(req.params.id) || [];
         res.json(messages);
       } catch (error) {
         console.error('Get messages error:', error);
@@ -589,7 +587,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   );
 
-  // POST /api/rooms/:id/messages - Send message
+  // POST /api/rooms/:id/messages - Send message (store in memory only)
   app.post(
     '/api/rooms/:id/messages',
     authenticateToken,
@@ -604,16 +602,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
       try {
         const { content, type, gifUrl } = req.body;
 
-        const message = new Message({
+        const message = {
+          _id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
           roomId: req.params.id,
           userId: req.user?._id,
           username: req.user?.username,
           content,
           type: type || 'text',
           gifUrl,
-        });
+          createdAt: new Date().toISOString(),
+        };
 
-        await message.save();
+        // Store in memory
+        if (!roomMessages.has(req.params.id)) {
+          roomMessages.set(req.params.id, []);
+        }
+        const messages = roomMessages.get(req.params.id)!;
+        messages.push(message);
+        
+        // Keep only last 100 messages per room
+        if (messages.length > 100) {
+          messages.shift();
+        }
+
         res.status(201).json(message);
       } catch (error) {
         console.error('Send message error:', error);
