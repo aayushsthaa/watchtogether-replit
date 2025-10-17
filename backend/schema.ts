@@ -49,7 +49,7 @@ export const roomSchema = z.object({
 
 export const insertRoomSchema = z.object({
   name: z.string().min(1, "Room name is required").max(50),
-  videoUrl: z.string().url().optional(),
+  videoUrl: z.string().url().optional().or(z.literal("")),
 });
 
 export const updateRoomSchema = z.object({
