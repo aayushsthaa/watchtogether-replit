@@ -365,7 +365,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     [
       body('name').notEmpty().isLength({ max: 50 }).withMessage('Room name is required (max 50 chars)'),
       body('mode').optional().isIn(['screenshare', 'watchparty']),
-      body('videoUrl').optional().isURL().withMessage('Invalid video URL'),
+      body('videoUrl').optional().custom((value) => {
+        if (!value || value === '') return true;
+        return /^https?:\/\/.+/.test(value);
+      }).withMessage('Invalid video URL'),
     ],
     validateRequest,
     async (req: AuthRequest, res) => {
